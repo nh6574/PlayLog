@@ -47,7 +47,7 @@ local function pl_draw_rich_segments(segments, x, y, max_x, mouse_x, mouse_y)
             else
                 local first_word = true
                 for wi, word in ipairs(words) do
-                    local prefix = (not first_word or seg_text:sub(1,1) == " ") and " " or ""
+                    local prefix = (not first_word or seg_text:sub(1, 1) == " ") and " " or ""
                     local token = prefix .. word
                     local token_w = font:getWidth(token) * scale
                     try_wrap(token_w)
@@ -110,7 +110,9 @@ local function pl_draw_hover_tooltip(hovered)
     if not center and G and G.P_SEALS then
         local seal = G.P_SEALS[hovered.key]
             or (SMODS and SMODS.Seal and G.P_SEALS[SMODS.Seal.badge_to_key[hovered.key] or ''])
-        if seal then center = seal; is_seal = true end
+        if seal then
+            center = seal; is_seal = true
+        end
     end
     if not center then return end
     if not G or not G.ROOM or not G.ROOM.T then return end
@@ -176,8 +178,12 @@ local function pl_draw_hover_tooltip(hovered)
             vars = { colours = {} }
         }
         local res = {}
+        local full_UI_table = { main = description, info = {}, type = {}, name = nil, badges = nil }
         if is_seal or center.consumeable or center.set == 'Edition' or center.set == 'Enhanced' then
-            generate_card_ui(center, { main = description, info = {}, type = {}, name = nil, badges = {} }, nil, center.set or (is_seal and 'Seal'), {})
+            PlayLog.no_info_queue = true
+            generate_card_ui(center, full_UI_table, nil,
+                center.set or (is_seal and 'Seal'), {})
+            PlayLog.no_info_queue = nil
         elseif center.loc_vars and type(center.loc_vars) == 'function' then
             res = center:loc_vars({}, card) or {}
             target.vars = res.vars or target.vars
@@ -197,22 +203,25 @@ local function pl_draw_hover_tooltip(hovered)
         end
         if res.main_end then description[#description + 1] = res.main_end end
 
-        if is_seal then
-            if type(center.name) == 'string' and center.name ~= '' then
-                name[#name+1] = { { n = G.UIT.T, config = { text = center.name, scale = 0.5, colour = G.C.WHITE, vert = false } } }
+        if type(full_UI_table.name) == "string" then full_UI_table.name = nil end
+
+        if not full_UI_table.name then
+            if is_seal then
+                if type(center.name) == 'string' and center.name ~= '' then
+                    name[#name + 1] = { { n = G.UIT.T, config = { text = center.name, scale = 0.5, colour = G.C.WHITE, vert = false } } }
+                else
+                    localize { type = 'name', set = center.set or 'Seal', key = center.key, nodes = name, vars = {} }
+                end
             else
-                localize { type = 'name', set = center.set or 'Seal', key = center.key, nodes = name, vars = {} }
+                localize { type = 'name', set = res.name_set or target.set, key = res.name_key or target.key, nodes = name, vars = res.name_vars or target.vars or {} }
             end
-        else
-            localize { type = 'name', set = res.name_set or target.set, key = res.name_key or target.key, nodes = name, vars = res.name_vars or target.vars or {} }
         end
 
-        local display_card = Card(0, 0, G.CARD_W / 1.2, G.CARD_H / 1.2, nil, pl_tooltip_card.config.center)
+        local display_card = Card(0, 0, G.CARD_W / 1.2, G.CARD_H / 1.2, nil, card_center)
         display_card.no_ui = true
         display_card.no_shadow = true
         if center.set == 'Edition' then
-            local etype = center.key:match('^e_(.+)$')
-            if etype then pcall(function() display_card:set_edition({ [etype] = true }, true, true) end) end
+            pcall(function() display_card:set_edition(center.key, true, true) end)
         elseif is_seal then
             local seal_key = (SMODS and SMODS.Seal and SMODS.Seal.badge_to_key[hovered.key]) or hovered.key
             if G.P_SEALS and G.P_SEALS[seal_key] then
@@ -247,7 +256,11 @@ local function pl_draw_hover_tooltip(hovered)
                                                 n = G.UIT.R,
                                                 config = { align = "cm", padding = 0.07, r = 0.1, colour = G.C.CLEAR },
                                                 nodes = {
-                                                    desc_from_rows(name, true),
+                                                    full_UI_table.name and {
+                                                        n = G.UIT.R,
+                                                        config = { align = "cm", padding = 0.07, r = 0.1, colour = G.C.CLEAR },
+                                                        nodes = full_UI_table.name
+                                                    } or desc_from_rows(name, true),
                                                     desc_from_rows(description)
                                                 }
                                             }
@@ -424,7 +437,8 @@ local function pl_draw_panel(layout)
     for i = first, last do
         local entry = G.playlog_entries[i]
         if entry then
-            local maybe_hovered, lines_used = pl_draw_rich_segments(entry.segments, layout.content_x, y, layout.content_x + layout.content_w, mx, my)
+            local maybe_hovered, lines_used = pl_draw_rich_segments(entry.segments, layout.content_x, y,
+                layout.content_x + layout.content_w, mx, my)
             if maybe_hovered then hovered_tooltip = maybe_hovered end
             y = y + (lines_used or 1) * PLAYLOG_ROW_HEIGHT
             if y > (layout.content_y + layout.content_h - PLAYLOG_ROW_HEIGHT) then

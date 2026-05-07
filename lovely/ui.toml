@@ -12,3 +12,13 @@ match_indent = true
 payload = '''
 if PlayLog then PlayLog.draw() end
 '''
+
+[[patches]]
+[patches.pattern]
+target = "functions/common_events.lua"
+pattern = "for _, v in ipairs(info_queue) do"
+position = 'before'
+match_indent = true
+payload = '''
+if PlayLog and PlayLog.no_info_queue then info_queue = {} end
+'''
