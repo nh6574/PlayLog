@@ -1,9 +1,10 @@
 -- UI (hi its love2d edition)
-
 local PLAYLOG_VISIBLE_ROWS = 16
 local PLAYLOG_ROWS_PER_FRAME = 20
-local PLAYLOG_ROW_HEIGHT = 20
+local PLAYLOG_ROW_HEIGHT = 22
 local PLAYLOG_TOGGLE_KEY = 'f8'
+local PLAYLOG_SCALE = 0.75
+local PLAYLOG_SLIDE_SPEED = 10
 local pl_tooltip_card = nil
 
 local function pl_is_run_active()
@@ -23,7 +24,7 @@ local function pl_draw_rich_segments(segments, x, y, max_x, mouse_x, mouse_y)
     local lines = 1
     local hovered_tooltip = nil
     local font = love.graphics.getFont()
-    local scale = 0.7
+    local scale = PLAYLOG_SCALE
     local seg_h = font:getHeight() * scale
     local function try_wrap(needed_w)
         if max_x and draw_x + needed_w > max_x and draw_x > x then
@@ -32,12 +33,12 @@ local function pl_draw_rich_segments(segments, x, y, max_x, mouse_x, mouse_y)
             lines = lines + 1
         end
     end
-
+    local def_r, def_g, def_b, def_a = pl_col('header_text', 0.88, 0.88, 0.88, 1)
     for i = 1, #segments do
         local seg = segments[i]
         local seg_text = seg.text or ""
         if seg_text ~= "" then
-            local c = seg.colour or { 1, 1, 1, 1 }
+            local c = seg.colour or { def_r, def_g, def_b, def_a }
             local words = {}
             for word in seg_text:gmatch("%S+") do words[#words + 1] = word end
             local space_w = font:getWidth(" ") * scale
@@ -78,10 +79,6 @@ local function pl_draw_rich_segments(segments, x, y, max_x, mouse_x, mouse_y)
     end
 
     return hovered_tooltip, lines
-end
-
-local function pl_point_in_rect(px, py, rx, ry, rw, rh)
-    return px >= rx and px <= (rx + rw) and py >= ry and py <= (ry + rh)
 end
 
 local function pl_remove_tooltip_card()
@@ -318,16 +315,20 @@ end
 
 local function pl_get_layout()
     local sw, sh = love.graphics.getDimensions()
-    local panel_w = 420
-    local panel_h = 390
-    local panel_x = sw - panel_w - 18
-    local panel_y = math.floor(sh * 0.24)
+    local panel_w = math.min(420, sw - 36)
+    local panel_h = math.min(420, math.floor(sh * 0.70))
+    local slide = G.playlog_slide or 0
+    local slide_offset = (1 - slide) * (panel_w + 20)
+    local panel_x = math.floor(sw - panel_w - 18 + slide_offset)
+    local panel_y = math.max(10, math.floor(sh * 0.22))
+    if panel_y + panel_h > sh - 10 then panel_y = sh - panel_h - 10 end
+    local header_h = 28
     local content_x = panel_x + 14
-    local content_y = panel_y + 16
-    local content_w = panel_w - 40
-    local content_h = panel_h - 32
-    local button_w = 34
-    local button_h = 34
+    local content_y = panel_y + header_h + 10
+    local content_w = panel_w - 36
+    local content_h = panel_h - header_h - 22
+    local button_w = 36
+    local button_h = 36
     local button_x = sw - button_w - 12
     local button_y = sh - button_h - 100
     return {
@@ -335,6 +336,7 @@ local function pl_get_layout()
         panel_y = panel_y,
         panel_w = panel_w,
         panel_h = panel_h,
+        header_h = header_h,
         content_x = content_x,
         content_y = content_y,
         content_w = content_w,
@@ -343,10 +345,14 @@ local function pl_get_layout()
         button_y = button_y,
         button_w = button_w,
         button_h = button_h,
-        scrollbar_x = panel_x + panel_w - 14,
-        scrollbar_y = panel_y + 10,
-        scrollbar_w = 8,
-        scrollbar_h = panel_h - 20,
+        scrollbar_x = panel_x + panel_w - 12,
+        scrollbar_y = content_y,
+        scrollbar_w = 6,
+        scrollbar_h = content_h,
+        cfg_btn_x = panel_x + panel_w - 40,
+        cfg_btn_y = panel_y + 5,
+        cfg_btn_w = 28,
+        cfg_btn_h = 18,
     }
 end
 
@@ -404,15 +410,111 @@ local function pl_flush_queue(max_rows)
     return added
 end
 
+local function pl_draw_config_content(layout)
+    local cx     = layout.content_x
+    local cy     = layout.content_y
+    local cw     = layout.content_w
+    local btn_w  = math.floor((cw - 10) / 2)
+    local btn_h  = 40
+    local gap    = 6
+    local mx, my = love.mouse.getPosition()
+    --title
+    love.graphics.setColor(pl_col('header_text', 0.95, 0.73, 0.25, 1))
+    love.graphics.print("SELECT THEME", cx, cy + 4, nil, 0.80, 0.80)
+    G.playlog_theme_rects = {}
+    for i, theme in ipairs(PLAYLOG_THEMES) do
+        local col                = (i - 1) % 2
+        local row                = math.floor((i - 1) / 2)
+        local bx                 = cx + col * (btn_w + gap)
+        local by                 = cy + 26 + row * (btn_h + gap)
+        local hov                = mx >= bx and mx <= bx + btn_w and my >= by and my <= by + btn_h
+        G.playlog_theme_rects[i] = { x = bx, y = by, w = btn_w, h = btn_h }
+        local function cols_eq(a, b)
+            return a and b and a[1] == b[1] and a[2] == b[2] and a[3] == b[3]
+        end
+        local active = cols_eq(PlayLog.config.panel_bg, theme.panel_bg)
+            and cols_eq(PlayLog.config.border, theme.border)
+            and cols_eq(PlayLog.config.header_text, theme.header_text)
+        love.graphics.setColor(theme.panel_bg[1], theme.panel_bg[2], theme.panel_bg[3], 0.95)
+        love.graphics.rectangle("fill", bx, by, btn_w, btn_h, 6, 6)
+        local b = theme.border
+        love.graphics.setColor(b[1], b[2], b[3], 0.85)
+        love.graphics.rectangle("fill", bx + 2, by + 2, btn_w - 4, 8, 4, 4)
+        love.graphics.setColor(b[1], b[2], b[3], hov and 1 or (active and 0.9 or 0.5))
+        love.graphics.setLineWidth(hov and 2.5 or (active and 2 or 1.5))
+        love.graphics.rectangle("line", bx, by, btn_w, btn_h, 6, 6)
+        love.graphics.setLineWidth(1)
+        local ht = theme.header_text
+        love.graphics.setColor(ht[1], ht[2], ht[3], 1)
+        love.graphics.print(theme.name, bx + 8, by + 15, nil, 0.82, 0.82)
+        if active then
+            love.graphics.setColor(b[1], b[2], b[3], 0.9)
+            love.graphics.circle("fill", bx + btn_w - 10, by + btn_h - 10, 4)
+        end
+    end
+    --hex input section
+    local rows = math.ceil(#PLAYLOG_THEMES / 2)
+    local hex_y = cy + 26 + rows * (btn_h + gap) + 10
+    love.graphics.setColor(pl_col('header_text', 0.95, 0.73, 0.25, 0.7))
+    love.graphics.print("CUSTOM COLORS  (click swatch to open picker)", cx, hex_y, nil, 0.68, 0.68)
+    hex_y = hex_y + 18
+    G.playlog_hex_rects = {}
+    local field_h = 28
+    local swatch_w = 22
+    for i, field in ipairs(pl_hex_fields) do
+        local fy = hex_y + (i - 1) * (field_h + 5)
+        local cur_col = PlayLog.config[field.key]
+        local swatch_hov = pl_point_in_rect(mx, my, cx, fy + 2, swatch_w, field_h - 4)
+        --swatch for color selection
+        if cur_col then
+            love.graphics.setColor(cur_col[1], cur_col[2], cur_col[3], 1)
+        else
+            love.graphics.setColor(0.3, 0.3, 0.3, 1)
+        end
+        love.graphics.rectangle("fill", cx, fy + 2, swatch_w, field_h - 4, 3, 3)
+        if swatch_hov then
+            love.graphics.setColor(1, 1, 1, 0.35)
+            love.graphics.rectangle("line", cx, fy + 2, swatch_w, field_h - 4, 3, 3)
+        end
+        -- field info
+        love.graphics.setColor(0, 0, 0, 0.35)
+        love.graphics.rectangle("fill", cx + swatch_w + 4, fy, cw - swatch_w - 4, field_h, 4, 4)
+        local br1, br2, br3 = pl_col('border', 0.95, 0.73, 0.25, 1)
+        love.graphics.setColor(br1, br2, br3, 0.25)
+        love.graphics.rectangle("line", cx + swatch_w + 4, fy, cw - swatch_w - 4, field_h, 4, 4)
+        love.graphics.setColor(0.6, 0.6, 0.6, 1)
+        love.graphics.print(field.label, cx + swatch_w + 8, fy + 2, nil, 0.62, 0.62)
+        love.graphics.setColor(1, 1, 1, 0.75)
+        love.graphics.print("#" .. pl_rgb_to_hex(cur_col), cx + swatch_w + 8, fy + 13, nil, 0.78, 0.78)
+        G.playlog_hex_rects[i] = { x = cx, y = fy + 2, w = swatch_w, h = field_h - 4, key = field.key, label = field
+        .label }
+    end
+end
+
 local function pl_draw_button(layout)
     local mx, my = love.mouse.getPosition()
     local hovered = pl_point_in_rect(mx, my, layout.button_x, layout.button_y, layout.button_w, layout.button_h)
-    love.graphics.setColor(0.12, 0.68, 0.84, hovered and 1 or 0.92)
-    love.graphics.rectangle("fill", layout.button_x, layout.button_y, layout.button_w, layout.button_h, 8, 8)
-    love.graphics.setColor(0, 0, 0, 0.25)
-    love.graphics.rectangle("line", layout.button_x, layout.button_y, layout.button_w, layout.button_h, 8, 8)
-    love.graphics.setColor(1, 1, 1, 1)
-    love.graphics.print("L", layout.button_x + 12, layout.button_y + 8)
+    local is_open = G.playlog_visible
+    --shadow
+    love.graphics.setColor(0, 0, 0, 0.35)
+    love.graphics.rectangle("fill", layout.button_x + 2, layout.button_y + 3, layout.button_w, layout.button_h, 9, 9)
+    --body
+    if hovered then
+        love.graphics.setColor(pl_col('button_hover_bg', 0.95, 0.73, 0.25, 1))
+    elseif is_open then
+        love.graphics.setColor(pl_col('button_active_bg', 0.18, 0.18, 0.28, 0.97))
+    else
+        love.graphics.setColor(pl_col('button_bg', 0.14, 0.14, 0.22, 0.97))
+    end
+    love.graphics.rectangle("fill", layout.button_x, layout.button_y, layout.button_w, layout.button_h, 9, 9)
+    --border
+    love.graphics.setColor(pl_col('border', 0.95, 0.73, 0.25, hovered and 1 or 0.5))
+    love.graphics.setLineWidth(1.5)
+    love.graphics.rectangle("line", layout.button_x, layout.button_y, layout.button_w, layout.button_h, 9, 9)
+    love.graphics.setLineWidth(1)
+    --icon
+    love.graphics.setColor(hovered and 0.1 or 1, hovered and 0.1 or 1, hovered and 0.1 or 1, 1)
+    love.graphics.print("LOG", layout.button_x + 4, layout.button_y + 10, nil, 0.72, 0.72)
 end
 
 local function pl_draw_panel(layout)
@@ -420,10 +522,39 @@ local function pl_draw_panel(layout)
         G.playlog_hovered_tooltip = nil
         return
     end
-    love.graphics.setColor(0.85, 0.2, 0.2, 0.95)
-    love.graphics.rectangle("fill", layout.panel_x, layout.panel_y, layout.panel_w, layout.panel_h, 8, 8)
-    love.graphics.setColor(1, 1, 1, 0.97)
-    love.graphics.rectangle("fill", layout.panel_x + 4, layout.panel_y + 4, layout.panel_w - 8, layout.panel_h - 8, 7, 7)
+    --drop shadow
+    love.graphics.setColor(0, 0, 0, 0.45)
+    love.graphics.rectangle("fill", layout.panel_x + 4, layout.panel_y + 5, layout.panel_w, layout.panel_h, 10, 10)
+    --panel body
+    love.graphics.setColor(pl_col('panel_bg', 0.10, 0.10, 0.17, 0.97))
+    love.graphics.rectangle("fill", layout.panel_x, layout.panel_y, layout.panel_w, layout.panel_h, 10, 10)
+    --gold border
+    love.graphics.setColor(pl_col('border', 0.95, 0.73, 0.25, 0.85))
+    love.graphics.setLineWidth(2)
+    love.graphics.rectangle("line", layout.panel_x, layout.panel_y, layout.panel_w, layout.panel_h, 10, 10)
+    love.graphics.setLineWidth(1)
+    --header bar
+    love.graphics.setColor(pl_col('header_tint', 0.95, 0.73, 0.25, 0.18))
+    love.graphics.rectangle("fill", layout.panel_x + 2, layout.panel_y + 2, layout.panel_w - 4, layout.header_h, 9, 9)
+    --header separator line
+    love.graphics.setColor(pl_col('border', 0.95, 0.73, 0.25, 0.45))
+    love.graphics.setLineWidth(1)
+    love.graphics.line(layout.panel_x + 10, layout.panel_y + layout.header_h + 2,
+        layout.panel_x + layout.panel_w - 10, layout.panel_y + layout.header_h + 2)
+    --header title
+    love.graphics.setColor(pl_col('header_text', 0.95, 0.73, 0.25, 1))
+    love.graphics.print("PLAY LOG", layout.panel_x + 14, layout.panel_y + 7, nil, 0.82, 0.82)
+    --config toggle button in header
+    local cfg_open = G.playlog_config_open
+    local mx0, my0 = love.mouse.getPosition()
+    local cfg_hov = pl_point_in_rect(mx0, my0, layout.cfg_btn_x, layout.cfg_btn_y, layout.cfg_btn_w, layout.cfg_btn_h)
+    love.graphics.setColor(pl_col('border', 0.95, 0.73, 0.25, cfg_open and 0.9 or (cfg_hov and 0.7 or 0.35)))
+    love.graphics.rectangle("fill", layout.cfg_btn_x, layout.cfg_btn_y, layout.cfg_btn_w, layout.cfg_btn_h, 4, 4)
+    love.graphics.setColor(0, 0, 0, cfg_open and 0.8 or 0.6)
+    love.graphics.print(cfg_open and "LOG" or "CFG", layout.cfg_btn_x + 2, layout.cfg_btn_y + 2, nil, 0.70, 0.70)
+    --content area: slide between log (left) and config (right)
+    local cslide = G.playlog_config_slide or 0
+    local cw = layout.content_w
     love.graphics.setScissor(layout.content_x, layout.content_y, layout.content_w, layout.content_h)
     local total = #G.playlog_entries
     local max_shift = pl_get_max_shift()
@@ -434,30 +565,57 @@ local function pl_draw_panel(layout)
     local mx, my = love.mouse.getPosition()
     local hovered_tooltip = nil
     local y = layout.content_y
-    for i = first, last do
-        local entry = G.playlog_entries[i]
-        if entry then
-            local maybe_hovered, lines_used = pl_draw_rich_segments(entry.segments, layout.content_x, y,
-                layout.content_x + layout.content_w, mx, my)
-            if maybe_hovered then hovered_tooltip = maybe_hovered end
-            y = y + (lines_used or 1) * PLAYLOG_ROW_HEIGHT
-            if y > (layout.content_y + layout.content_h - PLAYLOG_ROW_HEIGHT) then
-                break
+    local row_idx = 0
+    --log panel: translate left as config slides in
+    local log_x_off = math.floor(-cslide * (cw + 20))
+    local cfg_x_off = math.floor((1 - cslide) * (cw + 20))
+    --draw log entries (shifted left during config slide)
+    if cslide < 0.99 then
+        love.graphics.push()
+        love.graphics.translate(log_x_off, 0)
+        for i = first, last do
+            local entry = G.playlog_entries[i]
+            if entry then
+                row_idx = row_idx + 1
+                if row_idx % 2 == 0 then
+                    love.graphics.setColor(1, 1, 1, 0.03)
+                    love.graphics.rectangle("fill", layout.content_x - 6, y - 1, layout.content_w + 8, PLAYLOG_ROW_HEIGHT)
+                end
+                --only do hover detection when fully settled
+                local seg_mx = cslide == 0 and mx or -9999
+                local maybe_hovered, lines_used = pl_draw_rich_segments(entry.segments, layout.content_x, y,
+                    layout.content_x + layout.content_w - 10, seg_mx, my)
+                if maybe_hovered then hovered_tooltip = maybe_hovered end
+                y = y + (lines_used or 1) * PLAYLOG_ROW_HEIGHT
+                if y > (layout.content_y + layout.content_h - PLAYLOG_ROW_HEIGHT) then break end
             end
         end
+        love.graphics.pop()
+    end
+    --draw config content (slides in from the right)
+    if cslide > 0.01 then
+        love.graphics.push()
+        love.graphics.translate(cfg_x_off, 0)
+        if G.playlog_picker then
+            pl_draw_picker(layout)
+        else
+            pl_draw_config_content(layout)
+        end
+        love.graphics.pop()
     end
     love.graphics.setScissor()
     G.playlog_hovered_tooltip = hovered_tooltip
+    --scrollbar
     if max_shift > 0 then
-        love.graphics.setColor(0.7, 0.15, 0.15, 0.35)
-        love.graphics.rectangle("fill", layout.scrollbar_x, layout.scrollbar_y, layout.scrollbar_w, layout.scrollbar_h, 4,
-            4)
+        love.graphics.setColor(1, 1, 1, 0.08)
+        love.graphics.rectangle("fill", layout.scrollbar_x, layout.scrollbar_y, layout.scrollbar_w, layout.scrollbar_h, 3,
+            3)
         local ratio = PLAYLOG_VISIBLE_ROWS / math.max(total, PLAYLOG_VISIBLE_ROWS)
-        local knob_h = math.max(18, layout.scrollbar_h * ratio)
+        local knob_h = math.max(20, layout.scrollbar_h * ratio)
         local t = shift / max_shift
         local knob_y = layout.scrollbar_y + (layout.scrollbar_h - knob_h) * t
-        love.graphics.setColor(1, 1, 1, 0.95)
-        love.graphics.rectangle("fill", layout.scrollbar_x, knob_y, layout.scrollbar_w, knob_h, 4, 4)
+        love.graphics.setColor(pl_col('scrollbar_knob', 0.95, 0.73, 0.25, 0.85))
+        love.graphics.rectangle("fill", layout.scrollbar_x, knob_y, layout.scrollbar_w, knob_h, 3, 3)
     end
 end
 
@@ -465,7 +623,6 @@ local function pl_set_visible(is_visible)
     G.playlog_visible = is_visible and true or false
     if not G.playlog_visible then
         G.playlog_hovered_tooltip = nil
-        pl_remove_tooltip_card()
     end
 end
 
@@ -540,10 +697,16 @@ end
 local game_start_run_ref = Game.start_run
 function Game:start_run(args)
     game_start_run_ref(self, args)
-    G.playlog_entries = {}
+    G.playlog_entries         = {}
     G.playlog_pending_entries = {}
-    G.playlog_pending_start = 1
-    G.playlog_visible = true
+    G.playlog_pending_start   = 1
+    G.playlog_visible         = true
+    G.playlog_slide           = 0
+    G.playlog_config_open     = false
+    G.playlog_config_slide    = 0
+    G.playlog_hex_active      = nil
+    G.playlog_hex_input       = nil
+    G.playlog_picker          = nil
     G.playlog_hovered_tooltip = nil
     pl_remove_tooltip_card()
 end
@@ -553,6 +716,22 @@ function Game:update(dt)
     local ret = game_update_ref(self, dt)
     if pl_is_run_active() then
         pl_flush_queue(PLAYLOG_ROWS_PER_FRAME)
+        -- panel slide
+        local target = G.playlog_visible and 1 or 0
+        local current = G.playlog_slide or 0
+        local next_val = current + (target - current) * math.min(1, PLAYLOG_SLIDE_SPEED * dt)
+        if math.abs(next_val - target) < 0.002 then next_val = target end
+        G.playlog_slide = next_val
+        if next_val == 0 then
+            pl_remove_tooltip_card()
+            G.playlog_hovered_tooltip = nil
+        end
+        -- config panel slide
+        local cfg_target = G.playlog_config_open and 1 or 0
+        local cfg_cur = G.playlog_config_slide or 0
+        local cfg_next = cfg_cur + (cfg_target - cfg_cur) * math.min(1, PLAYLOG_SLIDE_SPEED * dt)
+        if math.abs(cfg_next - cfg_target) < 0.002 then cfg_next = cfg_target end
+        G.playlog_config_slide = cfg_next
     end
     return ret
 end
@@ -560,13 +739,18 @@ end
 function PlayLog.draw()
     if not pl_is_run_active() then return end
     local layout = pl_get_layout()
-    pl_draw_panel(layout)
+
+    if (G.playlog_slide or 0) > 0.01 then
+        pl_draw_panel(layout)
+    end
     pl_draw_button(layout)
     local active_tooltip = G.playlog_hovered_tooltip
     if not active_tooltip then
         pl_remove_tooltip_card()
     end
-    pl_draw_hover_tooltip(active_tooltip)
+    if (G.playlog_slide or 0) > 0.5 then
+        pl_draw_hover_tooltip(active_tooltip)
+    end
 end
 
 if not love.mousepressed then
@@ -578,10 +762,78 @@ end
 
 local playlog_keypressed_ref = love.keypressed
 function love.keypressed(key, scancode, isrepeat)
-    if pl_is_run_active() and not isrepeat and key == PLAYLOG_TOGGLE_KEY then
-        pl_set_visible(not G.playlog_visible)
+    if pl_is_run_active() then
+        local pk = G.playlog_picker
+        if pk and pk.hex_focus then
+            if key == 'return' or key == 'kpenter' then
+                local col = pl_hex_to_rgb(pk.hex_input or "")
+                if col then
+                    local h, s, v = pl_rgb_to_hsv(col[1], col[2], col[3])
+                    pk.h, pk.s, pk.v = h, s, v
+                    pl_picker_apply()
+                end
+                pk.hex_focus = false
+                pk.hex_input = nil
+            elseif key == 'backspace' then
+                local s = pk.hex_input or ""
+                pk.hex_input = s:sub(1, math.max(0, #s - 1))
+            else
+                local kp_map = { kp0 = '0', kp1 = '1', kp2 = '2', kp3 = '3', kp4 = '4', kp5 = '5', kp6 = '6', kp7 = '7', kp8 =
+                '8', kp9 = '9' }
+                local char = kp_map[key] or key:upper()
+                if #char == 1 and char:match("^[0-9A-F]$") then
+                    local s = pk.hex_input or ""
+                    if #s < 6 then
+                        pk.hex_input = s .. char
+                    end
+                end
+            end
+            return
+        end
+        if G.playlog_hex_active then
+            if key == 'return' or key == 'kpenter' then
+                local col = pl_hex_to_rgb(G.playlog_hex_input or "")
+                if col then
+                    local cfg_key = G.playlog_hex_active
+                    PlayLog.config[cfg_key] = col
+                    if cfg_key == 'border' then
+                        PlayLog.config.header_tint    = { col[1], col[2], col[3], 0.18 }
+                        PlayLog.config.scrollbar_knob = { col[1], col[2], col[3], 0.85 }
+                    end
+                    pl_save_config()
+                end
+                G.playlog_hex_active = nil
+                G.playlog_hex_input  = nil
+            elseif key == 'escape' then
+                G.playlog_hex_active = nil
+                G.playlog_hex_input  = nil
+            elseif key == 'backspace' then
+                local s = G.playlog_hex_input or ""
+                G.playlog_hex_input = s:sub(1, math.max(0, #s - 1))
+            else
+                local kp_map = { kp0 = '0', kp1 = '1', kp2 = '2', kp3 = '3', kp4 = '4', kp5 = '5', kp6 = '6', kp7 = '7', kp8 =
+                '8', kp9 = '9' }
+                local char = kp_map[key] or key:upper()
+                if #char == 1 and char:match("^[0-9A-F]$") then
+                    local s = G.playlog_hex_input or ""
+                    if #s < 6 then G.playlog_hex_input = s .. char end
+                end
+            end
+            return
+        end
+        if not isrepeat and key == PLAYLOG_TOGGLE_KEY then
+            pl_set_visible(not G.playlog_visible)
+        end
     end
     return playlog_keypressed_ref(key, scancode, isrepeat)
+end
+
+if not love.textinput then
+    function love.textinput(t) end
+end
+local playlog_textinput_ref = love.textinput
+function love.textinput(t)
+    return playlog_textinput_ref(t)
 end
 
 local playlog_mousepressed_ref = love.mousepressed
@@ -592,13 +844,64 @@ function love.mousepressed(x, y, button, istouch, presses)
     local layout = pl_get_layout()
     if button == 1 then
         if pl_point_in_rect(x, y, layout.button_x, layout.button_y, layout.button_w, layout.button_h) then
-            G.FUNCS.playlog_open_log(nil)
-        elseif pl_point_in_rect(x, y, layout.panel_x, layout.panel_y, layout.panel_w, layout.panel_h) then
-            G.playlog_visible = true
+            pl_set_visible(not G.playlog_visible)
+        elseif G.playlog_visible and pl_point_in_rect(x, y, layout.cfg_btn_x, layout.cfg_btn_y, layout.cfg_btn_w, layout.cfg_btn_h) then
+            -- CFG header button: toggles config panel, or closes picker back to list
+            if G.playlog_picker then
+                G.playlog_picker = nil
+            else
+                G.playlog_config_open = not G.playlog_config_open
+            end
+        elseif G.playlog_config_open then
+            local pk = G.playlog_picker
+            if pk then
+                if pk._back_rect and pl_point_in_rect(x, y, pk._back_rect.x, pk._back_rect.y, pk._back_rect.w, pk._back_rect.h) then
+                    G.playlog_picker = nil
+                elseif pk._hex_rect and pl_point_in_rect(x, y, pk._hex_rect.x, pk._hex_rect.y, pk._hex_rect.w, pk._hex_rect.h) then
+                    pk.hex_focus = true
+                    pk.hex_input = nil
+                elseif pk._sq_rect and pl_point_in_rect(x, y, pk._sq_rect.x, pk._sq_rect.y, pk._sq_rect.w, pk._sq_rect.h) then
+                    pk.hex_focus = false
+                    pk.hex_input = nil
+                    local nx = pl_clamp((x - pk._sq_rect.x) / pk._sq_rect.w, 0, 1)
+                    local ny = pl_clamp((y - pk._sq_rect.y) / pk._sq_rect.h, 0, 1)
+                    pk.s = nx; pk.v = 1 - ny
+                    pk._dragging = 'sv'
+                    pl_picker_apply()
+                elseif pk._hbar_rect and pl_point_in_rect(x, y, pk._hbar_rect.x, pk._hbar_rect.y, pk._hbar_rect.w, pk._hbar_rect.h) then
+                    pk.hex_focus = false
+                    pk.hex_input = nil
+                    pk.h = pl_clamp((x - pk._hbar_rect.x) / pk._hbar_rect.w, 0, 1) * 360
+                    pk._dragging = 'hue'
+                    pl_picker_apply()
+                end
+            else
+                -- swatch opens picker
+                if G.playlog_hex_rects then
+                    for i, rect in ipairs(G.playlog_hex_rects) do
+                        if pl_point_in_rect(x, y, rect.x, rect.y, rect.w, rect.h) then
+                            local cur = PlayLog.config[rect.key]
+                            local h, s, v = 0, 0, 1
+                            if cur then h, s, v = pl_rgb_to_hsv(cur[1], cur[2], cur[3]) end
+                            G.playlog_picker = { key = rect.key, label = rect.label, h = h, s = s, v = v }
+                            break
+                        end
+                    end
+                end
+                -- theme buttons
+                if G.playlog_theme_rects then
+                    for i, rect in ipairs(G.playlog_theme_rects) do
+                        if pl_point_in_rect(x, y, rect.x, rect.y, rect.w, rect.h) then
+                            pl_apply_theme(PLAYLOG_THEMES[i])
+                            break
+                        end
+                    end
+                end
+            end
         end
     elseif button == 2 then
         if pl_point_in_rect(x, y, layout.button_x, layout.button_y, layout.button_w, layout.button_h) then
-            pl_set_visible(not G.playlog_visible)
+            G.FUNCS.playlog_open_log(nil)
         end
     end
     playlog_mousepressed_ref(x, y, button, istouch, presses)
@@ -606,6 +909,42 @@ end
 
 if not love.wheelmoved then
     function love.wheelmoved(x, y) end
+end
+
+if not love.mousemoved then
+    function love.mousemoved(x, y, dx, dy) end
+end
+
+if not love.mousereleased then
+    function love.mousereleased(x, y, button) end
+end
+
+local playlog_mousemoved_ref = love.mousemoved
+function love.mousemoved(x, y, dx, dy)
+    if pl_is_run_active() then
+        local pk = G.playlog_picker
+        if pk and pk._dragging then
+            pk.hex_focus = false
+            pk.hex_input = nil
+            if pk._dragging == 'sv' and pk._sq_rect then
+                pk.s = pl_clamp((x - pk._sq_rect.x) / pk._sq_rect.w, 0, 1)
+                pk.v = 1 - pl_clamp((y - pk._sq_rect.y) / pk._sq_rect.h, 0, 1)
+                pl_picker_apply()
+            elseif pk._dragging == 'hue' and pk._hbar_rect then
+                pk.h = pl_clamp((x - pk._hbar_rect.x) / pk._hbar_rect.w, 0, 1) * 360
+                pl_picker_apply()
+            end
+        end
+    end
+    return playlog_mousemoved_ref(x, y, dx, dy)
+end
+
+local playlog_mousereleased_ref = love.mousereleased
+function love.mousereleased(x, y, button)
+    if pl_is_run_active() and G.playlog_picker then
+        G.playlog_picker._dragging = nil
+    end
+    return playlog_mousereleased_ref(x, y, button)
 end
 
 local playlog_wheelmoved_ref = love.wheelmoved
