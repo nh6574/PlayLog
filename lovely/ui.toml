@@ -1,0 +1,14 @@
+[manifest]
+version = "0.1.0"
+dump_lua = true
+priority = 0
+
+[[patches]]
+[patches.pattern]
+target = "game.lua"
+pattern = "for k, v in pairs(self.I.CARD) do"
+position = 'before'
+match_indent = true
+payload = '''
+if PlayLog then PlayLog.draw() end
+'''

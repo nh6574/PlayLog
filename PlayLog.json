@@ -1,0 +1,16 @@
+{
+  "id": "PlayLog",
+  "name": "PlayLog",
+  "display_name": "PlayLog",
+  "author": ["nh6574", "DillyTheDillster"],
+  "description": "Adds a log to the game",
+  "prefix": "playlog",
+  "main_file": "PlayLog.lua",
+  "priority": -10,
+  "badge_colour": "1EAED6",
+  "version": "0.1.0",
+  "no_marquee": true,
+  "dependencies": ["Steamodded (>=1.0.0~BETA-0827c)"],
+  "allow_redistribution": true,
+  "icon_path": "modicon.png"
+}
