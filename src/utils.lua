@@ -58,6 +58,7 @@ function PlayLog.parse_text(raw_text)
     local default_colour = copy_colour((G and G.C and G.C.UI and G.C.UI.TEXT_DARK) or { 0.08, 0.08, 0.08, 0.95 })
     local active_colour = copy_colour(default_colour)
     local active_tooltip = nil
+    local is_colored = false
     local segments = {}
     local i = 1
     local text = tostring(raw_text or "")
@@ -66,7 +67,7 @@ function PlayLog.parse_text(raw_text)
         if not open then
             local tail = text:sub(i)
             if tail ~= "" then
-                segments[#segments + 1] = { text = tail, colour = copy_colour(active_colour), tooltip = active_tooltip }
+                segments[#segments + 1] = { text = tail, colour = is_colored and copy_colour(active_colour) or nil, plain = not is_colored, tooltip = active_tooltip }
             end
             break
         end
@@ -75,26 +76,28 @@ function PlayLog.parse_text(raw_text)
             if plain ~= "" then
                 segments[#segments + 1] = {
                     text = plain,
-                    colour = copy_colour(active_colour),
-                    tooltip =
-                        active_tooltip
+                    colour = is_colored and copy_colour(active_colour) or nil,
+                    plain = not is_colored,
+                    tooltip = active_tooltip
                 }
             end
         end
         local close = text:find("}", open + 1, true)
         if not close then
             local rest = text:sub(open)
-            segments[#segments + 1] = { text = rest, colour = copy_colour(active_colour), tooltip = active_tooltip }
+            segments[#segments + 1] = { text = rest, colour = is_colored and copy_colour(active_colour) or nil, plain = not is_colored, tooltip = active_tooltip }
             break
         end
         local tag = text:sub(open + 1, close - 1)
         if tag == "" then
             active_colour = copy_colour(default_colour)
             active_tooltip = nil
+            is_colored = false
         else
             local colour_key = tag:match("C:([^,%}]+)")
             if colour_key then
                 active_colour = get_balatro_colour(colour_key, active_colour)
+                is_colored = true
             end
 
             local tooltip_key = tag:match("T:([^,%}]+)")
