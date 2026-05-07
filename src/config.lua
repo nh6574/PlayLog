@@ -54,6 +54,9 @@ function pl_apply_theme(theme)
     end
     pl_save_config()
 end
+if not PlayLog.config.panel_bg then
+    pl_apply_theme(PLAYLOG_THEMES[1])
+end
 
 --Color conversion helpers
 function pl_hex_to_rgb(hex)
