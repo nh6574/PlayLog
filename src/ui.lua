@@ -16,39 +16,68 @@ local function pl_clamp(value, minv, maxv)
     return value
 end
 
-local function pl_draw_rich_segments(segments, x, y, mouse_x, mouse_y)
-    if not segments then return nil end
-
+local function pl_draw_rich_segments(segments, x, y, max_x, mouse_x, mouse_y)
+    if not segments then return nil, 1 end
     local draw_x = x
+    local draw_y = y
+    local lines = 1
     local hovered_tooltip = nil
     local font = love.graphics.getFont()
+    local scale = 0.7
+    local seg_h = font:getHeight() * scale
+    local function try_wrap(needed_w)
+        if max_x and draw_x + needed_w > max_x and draw_x > x then
+            draw_x = x
+            draw_y = draw_y + PLAYLOG_ROW_HEIGHT
+            lines = lines + 1
+        end
+    end
+
     for i = 1, #segments do
         local seg = segments[i]
         local seg_text = seg.text or ""
         if seg_text ~= "" then
             local c = seg.colour or { 1, 1, 1, 1 }
-            love.graphics.setColor(c[1] or 1, c[2] or 1, c[3] or 1, c[4] or 1)
-            love.graphics.print(seg_text, draw_x, y, nil, 0.7, 0.7)
-            if seg.tooltip then
-                local seg_w = font:getWidth(seg_text) * 0.7
-                local seg_h = font:getHeight() * 0.7
-                if mouse_x >= draw_x and mouse_x <= (draw_x + seg_w) and mouse_y >= y and mouse_y <= (y + seg_h) then
-                    hovered_tooltip = {
-                        key = seg.tooltip,
-                        x = draw_x,
-                        y = y,
-                        w = seg_w,
-                        h = seg_h,
-                    }
-                    love.graphics.setColor(c[1] or 1, c[2] or 1, c[3] or 1, 0.35)
-                    love.graphics.rectangle("fill", draw_x, y + seg_h - 2, seg_w, 2)
+            local words = {}
+            for word in seg_text:gmatch("%S+") do words[#words + 1] = word end
+            local space_w = font:getWidth(" ") * scale
+
+            if #words == 0 then
+                draw_x = draw_x + font:getWidth(seg_text) * scale
+            else
+                local first_word = true
+                for wi, word in ipairs(words) do
+                    local prefix = (not first_word or seg_text:sub(1,1) == " ") and " " or ""
+                    local token = prefix .. word
+                    local token_w = font:getWidth(token) * scale
+                    try_wrap(token_w)
+                    love.graphics.setColor(c[1] or 1, c[2] or 1, c[3] or 1, c[4] or 1)
+                    love.graphics.print(token, draw_x, draw_y, nil, scale, scale)
+                    if seg.tooltip then
+                        if mouse_x >= draw_x and mouse_x <= (draw_x + token_w)
+                            and mouse_y >= draw_y and mouse_y <= (draw_y + seg_h) then
+                            hovered_tooltip = {
+                                key = seg.tooltip,
+                                x = draw_x,
+                                y = draw_y,
+                                w = token_w,
+                                h = seg_h,
+                            }
+                            love.graphics.setColor(c[1] or 1, c[2] or 1, c[3] or 1, 0.35)
+                            love.graphics.rectangle("fill", draw_x, draw_y + seg_h - 2, token_w, 2)
+                        end
+                    end
+                    draw_x = draw_x + token_w
+                    first_word = false
+                end
+                if seg_text:sub(-1) == " " then
+                    draw_x = draw_x + space_w
                 end
             end
-            draw_x = draw_x + font:getWidth(seg_text) * 0.7
         end
     end
 
-    return hovered_tooltip
+    return hovered_tooltip, lines
 end
 
 local function pl_point_in_rect(px, py, rx, ry, rw, rh)
@@ -77,6 +106,12 @@ local function pl_draw_hover_tooltip(hovered)
     end
 
     local center = G and G.P_CENTERS and G.P_CENTERS[hovered.key]
+    local is_seal = false
+    if not center and G and G.P_SEALS then
+        local seal = G.P_SEALS[hovered.key]
+            or (SMODS and SMODS.Seal and G.P_SEALS[SMODS.Seal.badge_to_key[hovered.key] or ''])
+        if seal then center = seal; is_seal = true end
+    end
     if not center then return end
     if not G or not G.ROOM or not G.ROOM.T then return end
 
@@ -102,9 +137,13 @@ local function pl_draw_hover_tooltip(hovered)
     end
     if y < 0.08 then y = 0.08 end
 
-    if not pl_tooltip_card or not pl_tooltip_card.config or not pl_tooltip_card.config.center or pl_tooltip_card.config.center.key ~= hovered.key then
+    local card_center = (is_seal or center.set == 'Edition')
+        and (G.P_CENTERS.j_joker or G.P_CENTERS.c_base)
+        or center
+    if not pl_tooltip_card or pl_tooltip_card._pl_key ~= hovered.key then
         pl_remove_tooltip_card()
-        pl_tooltip_card = Card(x + card_w / 2, y + card_h / 2, G.CARD_W * 0.55, G.CARD_H * 0.55, nil, center, nil)
+        pl_tooltip_card = Card(x + card_w / 2, y + card_h / 2, G.CARD_W * 0.55, G.CARD_H * 0.55, nil, card_center, nil)
+        pl_tooltip_card._pl_key = hovered.key
         pl_tooltip_card.no_graveyard = true
         pl_tooltip_card.states = pl_tooltip_card.states or {}
         pl_tooltip_card.states.hover = pl_tooltip_card.states.hover or {}
@@ -126,7 +165,6 @@ local function pl_draw_hover_tooltip(hovered)
         end
         pl_tooltip_card.children.info = nil
     end
-
     if not pl_tooltip_card.children.playlog_box then
         local name = {}
         local description = {}
@@ -138,7 +176,9 @@ local function pl_draw_hover_tooltip(hovered)
             vars = { colours = {} }
         }
         local res = {}
-        if center.loc_vars and type(center.loc_vars) == 'function' then
+        if is_seal or center.consumeable or center.set == 'Edition' or center.set == 'Enhanced' then
+            generate_card_ui(center, { main = description, info = {}, type = {}, name = nil, badges = {} }, nil, center.set or (is_seal and 'Seal'), {})
+        elseif center.loc_vars and type(center.loc_vars) == 'function' then
             res = center:loc_vars({}, card) or {}
             target.vars = res.vars or target.vars
             target.key = res.key or target.key
@@ -151,19 +191,34 @@ local function pl_draw_hover_tooltip(hovered)
             res.main_start = main_start
             res.main_end = main_end
         end
-        localize { type = 'name', set = res.name_set or target.set, key = res.name_key or target.key, nodes = name, vars = res.name_vars or target.vars or {} }
-        if res.main_start then
-            description[#description + 1] = res.main_start
+        if res.main_start then description[#description + 1] = res.main_start end
+        if not (is_seal or center.consumeable or center.set == 'Edition' or center.set == 'Enhanced') then
+            localize(target)
         end
+        if res.main_end then description[#description + 1] = res.main_end end
 
-        localize(target)
-        if res.main_end then
-            description[#description + 1] = res.main_end
+        if is_seal then
+            if type(center.name) == 'string' and center.name ~= '' then
+                name[#name+1] = { { n = G.UIT.T, config = { text = center.name, scale = 0.5, colour = G.C.WHITE, vert = false } } }
+            else
+                localize { type = 'name', set = center.set or 'Seal', key = center.key, nodes = name, vars = {} }
+            end
+        else
+            localize { type = 'name', set = res.name_set or target.set, key = res.name_key or target.key, nodes = name, vars = res.name_vars or target.vars or {} }
         end
 
         local display_card = Card(0, 0, G.CARD_W / 1.2, G.CARD_H / 1.2, nil, pl_tooltip_card.config.center)
         display_card.no_ui = true
         display_card.no_shadow = true
+        if center.set == 'Edition' then
+            local etype = center.key:match('^e_(.+)$')
+            if etype then pcall(function() display_card:set_edition({ [etype] = true }, true, true) end) end
+        elseif is_seal then
+            local seal_key = (SMODS and SMODS.Seal and SMODS.Seal.badge_to_key[hovered.key]) or hovered.key
+            if G.P_SEALS and G.P_SEALS[seal_key] then
+                pcall(function() display_card:set_seal(seal_key, true, true) end)
+            end
+        end
 
         pl_tooltip_card.children.playlog_box = UIBox {
             definition = {
@@ -369,9 +424,9 @@ local function pl_draw_panel(layout)
     for i = first, last do
         local entry = G.playlog_entries[i]
         if entry then
-            local maybe_hovered = pl_draw_rich_segments(entry.segments, layout.content_x, y, mx, my)
+            local maybe_hovered, lines_used = pl_draw_rich_segments(entry.segments, layout.content_x, y, layout.content_x + layout.content_w, mx, my)
             if maybe_hovered then hovered_tooltip = maybe_hovered end
-            y = y + PLAYLOG_ROW_HEIGHT
+            y = y + (lines_used or 1) * PLAYLOG_ROW_HEIGHT
             if y > (layout.content_y + layout.content_h - PLAYLOG_ROW_HEIGHT) then
                 break
             end
@@ -401,8 +456,71 @@ local function pl_set_visible(is_visible)
 end
 
 G.FUNCS.playlog_open_log = function(e)
-    pl_enqueue_rich_log(
-        "{C:attention}{T:j_misprint}High Priestess{} created {C:planet}{T:c_pluto}Pluto{} and {C:planet}{T:c_mars}Mars{}")
+    -- Editions
+    pl_enqueue_rich_log("Card got {T:e_foil}Foil{} edition")
+    pl_enqueue_rich_log("Card got {T:e_holo}Holographic{} edition")
+    pl_enqueue_rich_log("Card got {T:e_polychrome}Polychrome{} edition")
+    pl_enqueue_rich_log("Card got {T:e_negative}Negative{} edition")
+    -- Enhancements
+    pl_enqueue_rich_log("Card enhanced to {T:m_mult}Mult Card{}")
+    pl_enqueue_rich_log("Card enhanced to {T:m_wild}Wild Card{}")
+    pl_enqueue_rich_log("Card enhanced to {T:m_glass}Glass Card{}")
+    pl_enqueue_rich_log("Card enhanced to {T:m_steel}Steel Card{}")
+    pl_enqueue_rich_log("Card enhanced to {T:m_stone}Stone Card{}")
+    pl_enqueue_rich_log("Card enhanced to {T:m_gold}Gold Card{}")
+    pl_enqueue_rich_log("Card enhanced to {T:m_lucky}Lucky Card{}")
+    -- Seals
+    pl_enqueue_rich_log("Card got {T:gold_seal}Gold Seal{}")
+    pl_enqueue_rich_log("Card got {T:red_seal}Red Seal{}")
+    pl_enqueue_rich_log("Card got {T:blue_seal}Blue Seal{}")
+    pl_enqueue_rich_log("Card got {T:purple_seal}Purple Seal{}")
+    -- Tarots
+    pl_enqueue_rich_log("{C:tarot}{T:c_fool}The Fool{} copied last used card")
+    pl_enqueue_rich_log("{C:tarot}{T:c_high_priestess}The High Priestess{} created 2 planets")
+    pl_enqueue_rich_log("{C:tarot}{T:c_magician}The Magician{} enhanced 2 cards to {T:m_lucky}Lucky{}")
+    pl_enqueue_rich_log("{C:tarot}{T:c_emperor}The Emperor{} created 2 tarots")
+    pl_enqueue_rich_log("{C:tarot}{T:c_strength}Strength{} swapped ranks on 2 cards")
+    pl_enqueue_rich_log("{C:tarot}{T:c_hermit}The Hermit{} doubled money")
+    pl_enqueue_rich_log("{C:tarot}{T:c_wheel_of_fortune}Wheel of Fortune{} gave {T:e_foil}Foil{} to a joker")
+    pl_enqueue_rich_log("{C:tarot}{T:c_temperance}Temperance{} collected joker value")
+    pl_enqueue_rich_log("{C:tarot}{T:c_hanged_man}The Hanged Man{} destroyed 2 cards")
+    pl_enqueue_rich_log("{C:tarot}{T:c_death}Death{} converted a card")
+    pl_enqueue_rich_log("{C:tarot}{T:c_star}The Star{} converted 3 cards to {C:spades}Spades{}")
+    pl_enqueue_rich_log("{C:tarot}{T:c_judgement}Judgement{} created a random joker")
+    pl_enqueue_rich_log("{C:tarot}{T:c_world}The World{} converted 3 cards to {C:hearts}Hearts{}")
+    -- Planets
+    pl_enqueue_rich_log("{C:planet}{T:c_pluto}Pluto{} leveled up {C:attention}High Card{}")
+    pl_enqueue_rich_log("{C:planet}{T:c_mercury}Mercury{} leveled up {C:attention}Pair{}")
+    pl_enqueue_rich_log("{C:planet}{T:c_uranus}Uranus{} leveled up {C:attention}Two Pair{}")
+    pl_enqueue_rich_log("{C:planet}{T:c_venus}Venus{} leveled up {C:attention}Three of a Kind{}")
+    pl_enqueue_rich_log("{C:planet}{T:c_saturn}Saturn{} leveled up {C:attention}Straight{}")
+    pl_enqueue_rich_log("{C:planet}{T:c_jupiter}Jupiter{} leveled up {C:attention}Flush{}")
+    pl_enqueue_rich_log("{C:planet}{T:c_mars}Mars{} leveled up {C:attention}Full House{}")
+    pl_enqueue_rich_log("{C:planet}{T:c_neptune}Neptune{} leveled up {C:attention}Four of a Kind{}")
+    pl_enqueue_rich_log("{C:planet}{T:c_earth}Earth{} leveled up {C:attention}Straight Flush{}")
+    pl_enqueue_rich_log("{C:planet}{T:c_eris}Eris{} leveled up {C:attention}Five of a Kind{}")
+    -- Spectrals
+    pl_enqueue_rich_log("{C:spectral}{T:c_familiar}Familiar{} destroyed a card and added 3 enhanced cards")
+    pl_enqueue_rich_log("{C:spectral}{T:c_grim}Grim{} destroyed a card and added 2 Aces")
+    pl_enqueue_rich_log("{C:spectral}{T:c_incantation}Incantation{} destroyed a card and added 4 numbered cards")
+    pl_enqueue_rich_log("{C:spectral}{T:c_talisman}Talisman{} added a {T:gold_seal}Gold Seal{}")
+    pl_enqueue_rich_log("{C:spectral}{T:c_aura}Aura{} added an edition to a card")
+    pl_enqueue_rich_log("{C:spectral}{T:c_wraith}Wraith{} created a rare joker")
+    pl_enqueue_rich_log("{C:spectral}{T:c_sigil}Sigil{} converted all cards to one suit")
+    pl_enqueue_rich_log("{C:spectral}{T:c_ouija}Ouija{} converted all cards to one rank")
+    pl_enqueue_rich_log("{C:spectral}{T:c_ectoplasm}Ectoplasm{} added {T:e_negative}Negative{} to a joker")
+    pl_enqueue_rich_log("{C:spectral}{T:c_immolate}Immolate{} destroyed 5 cards for {C:money}$20{}")
+    pl_enqueue_rich_log("{C:spectral}{T:c_ankh}Ankh{} copied a joker")
+    pl_enqueue_rich_log("{C:spectral}{T:c_deja_vu}Deja Vu{} added a {T:red_seal}Red Seal{}")
+    pl_enqueue_rich_log("{C:spectral}{T:c_hex}Hex{} added {T:e_polychrome}Polychrome{} to a joker")
+    pl_enqueue_rich_log("{C:spectral}{T:c_trance}Trance{} added a {T:blue_seal}Blue Seal{}")
+    pl_enqueue_rich_log("{C:spectral}{T:c_medium}Medium{} added a {T:purple_seal}Purple Seal{}")
+    pl_enqueue_rich_log("{C:spectral}{T:c_cryptid}Cryptid{} made 2 copies of a card")
+    -- Jokers
+    pl_enqueue_rich_log("{C:attention}{T:j_joker}Joker{} is in play")
+    pl_enqueue_rich_log("{C:attention}{T:j_misprint}Misprint{} is in play")
+    pl_enqueue_rich_log("{C:attention}{T:j_blueprint}Blueprint{} copying {T:j_joker}Joker{}")
+    pl_enqueue_rich_log("{C:attention}{T:j_brainstorm}Brainstorm{} copying {T:j_blueprint}Blueprint{}")
 end
 
 local game_start_run_ref = Game.start_run
