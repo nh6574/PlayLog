@@ -6,6 +6,7 @@ local PLAYLOG_TOGGLE_KEY = 'f8'
 local PLAYLOG_SCALE = 0.75
 local PLAYLOG_SLIDE_SPEED = 10
 local pl_tooltip_card = nil
+local playlog_mousemoved_ref = nil
 
 local function pl_is_run_active()
     return G and G.STAGE and G.STAGES and G.STAGE == G.STAGES.RUN
@@ -308,20 +309,24 @@ local function pl_draw_hover_tooltip(hovered)
     elseif pl_tooltip_card.render then
         pl_tooltip_card:render()
     end
-
     G.OVERLAY_TUTORIAL = nil
     love.graphics.pop()
 end
 
 local function pl_get_layout()
     local sw, sh = love.graphics.getDimensions()
-    local panel_w = math.min(420, sw - 36)
-    local panel_h = math.min(420, math.floor(sh * 0.70))
+    local min_w = 320
+    local min_h = 220
+    local max_w = math.max(min_w, sw - 20)
+    local max_h = math.max(min_h, sh - 20)
+    local panel_w = pl_clamp(tonumber(PlayLog.config.panel_w) or math.min(420, sw - 36), min_w, max_w)
+    local panel_h = pl_clamp(tonumber(PlayLog.config.panel_h) or math.min(420, math.floor(sh * 0.70)), min_h, max_h)
     local slide = G.playlog_slide or 0
     local slide_offset = (1 - slide) * (panel_w + 20)
-    local panel_x = math.floor(sw - panel_w - 18 + slide_offset)
-    local panel_y = math.max(10, math.floor(sh * 0.22))
-    if panel_y + panel_h > sh - 10 then panel_y = sh - panel_h - 10 end
+    local panel_x = math.floor(sw - panel_w - 18 + slide_offset) + (G.playlog_drag_dx or 0)
+    local panel_y = math.max(10, math.floor(sh * 0.22))             + (G.playlog_drag_dy or 0)
+    panel_x = pl_clamp(panel_x, 0, sw - panel_w)
+    panel_y = pl_clamp(panel_y, 0, sh - panel_h)
     local header_h = 28
     local content_x = panel_x + 14
     local content_y = panel_y + header_h + 10
@@ -353,11 +358,43 @@ local function pl_get_layout()
         cfg_btn_y = panel_y + 5,
         cfg_btn_w = 28,
         cfg_btn_h = 18,
+        resize_corner = 14,
+        resize_edge = 6,
+        resize_tl_x = panel_x,
+        resize_tl_y = panel_y,
+        resize_tr_x = panel_x + panel_w - 14,
+        resize_tr_y = panel_y,
+        resize_bl_x = panel_x,
+        resize_bl_y = panel_y + panel_h - 14,
+        resize_br_x = panel_x + panel_w - 14,
+        resize_br_y = panel_y + panel_h - 14,
+        resize_l_x = panel_x,
+        resize_l_y = panel_y + 14,
+        resize_l_w = 6,
+        resize_l_h = math.max(10, panel_h - 28),
+        resize_r_x = panel_x + panel_w - 6,
+        resize_r_y = panel_y + 14,
+        resize_r_w = 6,
+        resize_r_h = math.max(10, panel_h - 28),
+        resize_t_x = panel_x + 14,
+        resize_t_y = panel_y,
+        resize_t_w = math.max(10, panel_w - 28),
+        resize_t_h = 6,
+        resize_b_x = panel_x + 14,
+        resize_b_y = panel_y + panel_h - 6,
+        resize_b_w = math.max(10, panel_w - 28),
+        resize_b_h = 6,
     }
 end
 
-local function pl_get_max_shift()
-    return math.max(#G.playlog_entries - PLAYLOG_VISIBLE_ROWS, 0)
+local function pl_get_visible_rows(layout)
+    layout = layout or pl_get_layout()
+    return math.max(1, math.floor((layout.content_h - 4) / PLAYLOG_ROW_HEIGHT))
+end
+
+local function pl_get_max_shift(layout)
+    local total = (G and G.playlog_entries and #G.playlog_entries) or 0
+    return math.max(total - pl_get_visible_rows(layout), 0)
 end
 
 local function pl_enqueue_rich_log(raw_body)
@@ -551,24 +588,64 @@ local function pl_draw_panel(layout)
     --header title
     love.graphics.setColor(pl_col('header_text', 0.95, 0.73, 0.25, 1))
     love.graphics.print("PLAY LOG", layout.panel_x + 14, layout.panel_y + 7, nil, 0.82, 0.82)
-    --config toggle button in header
-    local cfg_open = G.playlog_config_open
+    --drag handle dots
+    local hdr_cx = layout.panel_x + layout.panel_w * 0.5
+    local hdr_cy = layout.panel_y + layout.header_h * 0.5
     local mx0, my0 = love.mouse.getPosition()
+    local header_hov = pl_point_in_rect(mx0, my0, layout.panel_x, layout.panel_y, layout.panel_w, layout.header_h)
+        and not pl_point_in_rect(mx0, my0, layout.cfg_btn_x, layout.cfg_btn_y, layout.cfg_btn_w, layout.cfg_btn_h)
+    local resize_tl_hov = pl_point_in_rect(mx0, my0, layout.resize_tl_x, layout.resize_tl_y, layout.resize_corner, layout.resize_corner)
+    local resize_tr_hov = pl_point_in_rect(mx0, my0, layout.resize_tr_x, layout.resize_tr_y, layout.resize_corner, layout.resize_corner)
+    local resize_bl_hov = pl_point_in_rect(mx0, my0, layout.resize_bl_x, layout.resize_bl_y, layout.resize_corner, layout.resize_corner)
+    local resize_br_hov = pl_point_in_rect(mx0, my0, layout.resize_br_x, layout.resize_br_y, layout.resize_corner, layout.resize_corner)
+    local resize_l_hov = pl_point_in_rect(mx0, my0, layout.resize_l_x, layout.resize_l_y, layout.resize_l_w, layout.resize_l_h)
+    local resize_r_hov = pl_point_in_rect(mx0, my0, layout.resize_r_x, layout.resize_r_y, layout.resize_r_w, layout.resize_r_h)
+    local resize_t_hov = pl_point_in_rect(mx0, my0, layout.resize_t_x, layout.resize_t_y, layout.resize_t_w, layout.resize_t_h)
+    local resize_b_hov = pl_point_in_rect(mx0, my0, layout.resize_b_x, layout.resize_b_y, layout.resize_b_w, layout.resize_b_h)
+    love.graphics.setColor(pl_col('header_text', 0.95, 0.73, 0.25, header_hov and 0.6 or 0.25))
+    for _, dot in ipairs({{-8,0},{0,0},{8,0}}) do
+        love.graphics.circle("fill", hdr_cx + dot[1], hdr_cy, 2)
+    end
+    if resize_tl_hov or resize_br_hov or G.playlog_resize_mode == 'tl' or G.playlog_resize_mode == 'br' then
+        love.mouse.setCursor(love.mouse.getSystemCursor("sizenwse"))
+    elseif resize_tr_hov or resize_bl_hov or G.playlog_resize_mode == 'tr' or G.playlog_resize_mode == 'bl' then
+        love.mouse.setCursor(love.mouse.getSystemCursor("sizenesw"))
+    elseif resize_l_hov or resize_r_hov or G.playlog_resize_mode == 'left' or G.playlog_resize_mode == 'right' then
+        love.mouse.setCursor(love.mouse.getSystemCursor("sizewe"))
+    elseif resize_t_hov or resize_b_hov or G.playlog_resize_mode == 'top' or G.playlog_resize_mode == 'bottom' then
+        love.mouse.setCursor(love.mouse.getSystemCursor("sizens"))
+    elseif header_hov or G.playlog_panel_dragging then
+        love.mouse.setCursor(love.mouse.getSystemCursor("sizeall"))
+    else
+        love.mouse.setCursor()
+    end
+    local cfg_open = G.playlog_config_open
     local cfg_hov = pl_point_in_rect(mx0, my0, layout.cfg_btn_x, layout.cfg_btn_y, layout.cfg_btn_w, layout.cfg_btn_h)
     love.graphics.setColor(pl_col('border', 0.95, 0.73, 0.25, cfg_open and 0.9 or (cfg_hov and 0.7 or 0.35)))
     love.graphics.rectangle("fill", layout.cfg_btn_x, layout.cfg_btn_y, layout.cfg_btn_w, layout.cfg_btn_h, 4, 4)
     love.graphics.setColor(0, 0, 0, cfg_open and 0.8 or 0.6)
     love.graphics.print(cfg_open and "LOG" or "CFG", layout.cfg_btn_x + 2, layout.cfg_btn_y + 2, nil, 0.70, 0.70)
+    --resize handle (bottom-right)
+    local br1, br2, br3 = pl_col('border', 0.95, 0.73, 0.25, 1)
+    local resize_hov = resize_tl_hov or resize_tr_hov or resize_bl_hov or resize_br_hov
+        or resize_l_hov or resize_r_hov or resize_t_hov or resize_b_hov
+    love.graphics.setColor(br1, br2, br3, resize_hov and 0.9 or 0.45)
+    local rx, ry = layout.resize_br_x, layout.resize_br_y
+    love.graphics.setLineWidth(1)
+    love.graphics.line(rx + 4, ry + 12, rx + 12, ry + 4)
+    love.graphics.line(rx + 7, ry + 12, rx + 12, ry + 7)
+    love.graphics.line(rx + 10, ry + 12, rx + 12, ry + 10)
     --content area: slide between log (left) and config (right)
     local cslide = G.playlog_config_slide or 0
     local cw = layout.content_w
     love.graphics.setScissor(layout.content_x, layout.content_y, layout.content_w, layout.content_h)
     local total = #G.playlog_entries
-    local max_shift = pl_get_max_shift()
-    local shift = pl_clamp(G.playlog_scroll_shift or max_shift, 0, pl_get_max_shift())
+    local visible_rows = pl_get_visible_rows(layout)
+    local max_shift = pl_get_max_shift(layout)
+    local shift = pl_clamp(G.playlog_scroll_shift or max_shift, 0, max_shift)
     G.playlog_scroll_shift = max_shift > 0 and shift or nil
     local first = shift
-    local last = math.max(1, first + PLAYLOG_VISIBLE_ROWS + 1)
+    local last = math.max(1, first + visible_rows + 1)
     local mx, my = love.mouse.getPosition()
     local hovered_tooltip = nil
     local y = layout.content_y
@@ -617,7 +694,7 @@ local function pl_draw_panel(layout)
         love.graphics.setColor(1, 1, 1, 0.08)
         love.graphics.rectangle("fill", layout.scrollbar_x, layout.scrollbar_y, layout.scrollbar_w, layout.scrollbar_h, 3,
             3)
-        local ratio = PLAYLOG_VISIBLE_ROWS / math.max(total, PLAYLOG_VISIBLE_ROWS)
+        local ratio = visible_rows / math.max(total, visible_rows)
         local knob_h = math.max(20, layout.scrollbar_h * ratio)
         local t = shift / max_shift
         local knob_y = layout.scrollbar_y + (layout.scrollbar_h - knob_h) * t
@@ -874,13 +951,54 @@ function love.mousepressed(x, y, button, istouch, presses)
     if button == 1 then
         if pl_point_in_rect(x, y, layout.button_x, layout.button_y, layout.button_w, layout.button_h) then
             pl_set_visible(not G.playlog_visible)
+        elseif G.playlog_visible and (
+            pl_point_in_rect(x, y, layout.resize_tl_x, layout.resize_tl_y, layout.resize_corner, layout.resize_corner)
+            or pl_point_in_rect(x, y, layout.resize_tr_x, layout.resize_tr_y, layout.resize_corner, layout.resize_corner)
+            or pl_point_in_rect(x, y, layout.resize_bl_x, layout.resize_bl_y, layout.resize_corner, layout.resize_corner)
+            or pl_point_in_rect(x, y, layout.resize_br_x, layout.resize_br_y, layout.resize_corner, layout.resize_corner)
+            or pl_point_in_rect(x, y, layout.resize_l_x, layout.resize_l_y, layout.resize_l_w, layout.resize_l_h)
+            or pl_point_in_rect(x, y, layout.resize_r_x, layout.resize_r_y, layout.resize_r_w, layout.resize_r_h)
+            or pl_point_in_rect(x, y, layout.resize_t_x, layout.resize_t_y, layout.resize_t_w, layout.resize_t_h)
+            or pl_point_in_rect(x, y, layout.resize_b_x, layout.resize_b_y, layout.resize_b_w, layout.resize_b_h)
+        ) then
+            G.playlog_panel_resizing = true
+            if pl_point_in_rect(x, y, layout.resize_tl_x, layout.resize_tl_y, layout.resize_corner, layout.resize_corner) then
+                G.playlog_resize_mode = 'tl'
+            elseif pl_point_in_rect(x, y, layout.resize_tr_x, layout.resize_tr_y, layout.resize_corner, layout.resize_corner) then
+                G.playlog_resize_mode = 'tr'
+            elseif pl_point_in_rect(x, y, layout.resize_bl_x, layout.resize_bl_y, layout.resize_corner, layout.resize_corner) then
+                G.playlog_resize_mode = 'bl'
+            elseif pl_point_in_rect(x, y, layout.resize_br_x, layout.resize_br_y, layout.resize_corner, layout.resize_corner) then
+                G.playlog_resize_mode = 'br'
+            elseif pl_point_in_rect(x, y, layout.resize_l_x, layout.resize_l_y, layout.resize_l_w, layout.resize_l_h) then
+                G.playlog_resize_mode = 'left'
+            elseif pl_point_in_rect(x, y, layout.resize_r_x, layout.resize_r_y, layout.resize_r_w, layout.resize_r_h) then
+                G.playlog_resize_mode = 'right'
+            elseif pl_point_in_rect(x, y, layout.resize_t_x, layout.resize_t_y, layout.resize_t_w, layout.resize_t_h) then
+                G.playlog_resize_mode = 'top'
+            else
+                G.playlog_resize_mode = 'bottom'
+            end
+            G.playlog_resize_start_x = x
+            G.playlog_resize_start_y = y
+            G.playlog_resize_base_w = layout.panel_w
+            G.playlog_resize_base_h = layout.panel_h
+            G.playlog_resize_base_dx = G.playlog_drag_dx or 0
+            G.playlog_resize_base_dy = G.playlog_drag_dy or 0
         elseif G.playlog_visible and pl_point_in_rect(x, y, layout.cfg_btn_x, layout.cfg_btn_y, layout.cfg_btn_w, layout.cfg_btn_h) then
-            -- CFG header button: toggles config panel, or closes picker back to list
+            --CFG header button: toggles config panel, or closes picker back to list
             if G.playlog_picker then
                 G.playlog_picker = nil
             else
                 G.playlog_config_open = not G.playlog_config_open
             end
+        elseif G.playlog_visible and pl_point_in_rect(x, y, layout.panel_x, layout.panel_y, layout.panel_w, layout.header_h) then
+            --header drag: start dragging the panel
+            G.playlog_panel_dragging  = true
+            G.playlog_drag_start_x    = x
+            G.playlog_drag_start_y    = y
+            G.playlog_drag_base_dx    = G.playlog_drag_dx or 0
+            G.playlog_drag_base_dy    = G.playlog_drag_dy or 0
         elseif G.playlog_config_open then
             local pk = G.playlog_picker
             if pk then
@@ -905,7 +1023,7 @@ function love.mousepressed(x, y, button, istouch, presses)
                     pl_picker_apply()
                 end
             else
-                -- swatch opens picker
+                --swatch opens picker
                 if G.playlog_hex_rects then
                     for i, rect in ipairs(G.playlog_hex_rects) do
                         if pl_point_in_rect(x, y, rect.x, rect.y, rect.w, rect.h) then
@@ -917,7 +1035,7 @@ function love.mousepressed(x, y, button, istouch, presses)
                         end
                     end
                 end
-                -- theme buttons
+                --theme buttons
                 if G.playlog_theme_rects then
                     for i, rect in ipairs(G.playlog_theme_rects) do
                         if pl_point_in_rect(x, y, rect.x, rect.y, rect.w, rect.h) then
@@ -948,9 +1066,50 @@ if not love.mousereleased then
     function love.mousereleased(x, y, button) end
 end
 
-local playlog_mousemoved_ref = love.mousemoved
+playlog_mousemoved_ref = love.mousemoved
 function love.mousemoved(x, y, dx, dy)
     if pl_is_run_active() then
+        --panel resize
+        if G.playlog_panel_resizing then
+            local sw, sh = love.graphics.getDimensions()
+            local min_w = 320
+            local min_h = 220
+            local max_w = math.max(min_w, sw - 20)
+            local max_h = math.max(min_h, sh - 20)
+            local mode = G.playlog_resize_mode or 'br'
+            local dxm = x - (G.playlog_resize_start_x or x)
+            local dym = y - (G.playlog_resize_start_y or y)
+            local base_w = G.playlog_resize_base_w or 420
+            local base_h = G.playlog_resize_base_h or 320
+            local base_dx = G.playlog_resize_base_dx or 0
+            local base_dy = G.playlog_resize_base_dy or 0
+            local new_w = base_w
+            local new_h = base_h
+            local new_dx = base_dx
+            local new_dy = base_dy
+            if mode == 'right' or mode == 'tr' or mode == 'br' then
+                new_w = pl_clamp(base_w + dxm, min_w, max_w)
+                new_dx = base_dx + (new_w - base_w)
+            elseif mode == 'left' or mode == 'tl' or mode == 'bl' then
+                new_w = pl_clamp(base_w - dxm, min_w, max_w)
+            end
+            if mode == 'bottom' or mode == 'bl' or mode == 'br' then
+                new_h = pl_clamp(base_h + dym, min_h, max_h)
+            elseif mode == 'top' or mode == 'tl' or mode == 'tr' then
+                new_h = pl_clamp(base_h - dym, min_h, max_h)
+                new_dy = base_dy - (new_h - base_h)
+            end
+            PlayLog.config.panel_w = new_w
+            PlayLog.config.panel_h = new_h
+            G.playlog_drag_dx = new_dx
+            G.playlog_drag_dy = new_dy
+            pl_save_config()
+        end
+        --panel drag
+        if G.playlog_panel_dragging then
+            G.playlog_drag_dx = G.playlog_drag_base_dx + (x - G.playlog_drag_start_x)
+            G.playlog_drag_dy = G.playlog_drag_base_dy + (y - G.playlog_drag_start_y)
+        end
         local pk = G.playlog_picker
         if pk and pk._dragging then
             pk.hex_focus = false
@@ -970,8 +1129,13 @@ end
 
 local playlog_mousereleased_ref = love.mousereleased
 function love.mousereleased(x, y, button)
-    if pl_is_run_active() and G.playlog_picker then
-        G.playlog_picker._dragging = nil
+    if pl_is_run_active() then
+        if G.playlog_picker then
+            G.playlog_picker._dragging = nil
+        end
+        G.playlog_panel_dragging = nil
+        G.playlog_panel_resizing = nil
+        G.playlog_resize_mode = nil
     end
     return playlog_mousereleased_ref(x, y, button)
 end
@@ -984,7 +1148,7 @@ function love.wheelmoved(x, y)
     local mx, my = love.mouse.getPosition()
     local layout = pl_get_layout()
     if G.playlog_visible and pl_point_in_rect(mx, my, layout.panel_x, layout.panel_y, layout.panel_w, layout.panel_h) then
-        local max_shift = pl_get_max_shift()
+        local max_shift = pl_get_max_shift(layout)
         if max_shift > 0 then
             local step = 2
             G.playlog_scroll_shift = pl_clamp((G.playlog_scroll_shift or 0) - y * step, 0, max_shift)
