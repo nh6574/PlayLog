@@ -1,5 +1,6 @@
 PlayLog = {}
 
+PlayLog.mod    = SMODS.current_mod
 PlayLog.config = SMODS.current_mod.config
 
 assert(SMODS.current_mod.lovely,

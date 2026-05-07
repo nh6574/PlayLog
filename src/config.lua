@@ -41,7 +41,8 @@ end
 local PL_CONFIG_KEYS = { 'panel_bg', 'border', 'header_tint', 'header_text', 'scrollbar_knob' }
 
 function pl_save_config()
-    SMODS.save_mod_config(SMODS.current_mod)
+    PlayLog.mod.config = PlayLog.config
+    SMODS.save_mod_config(PlayLog.mod)
 end
 
 function pl_load_config()
