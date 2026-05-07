@@ -234,12 +234,12 @@ local function pl_draw_hover_tooltip(hovered)
                     padding = 0.1,
                     r = 0.12,
                     emboss = 0.1,
-                    colour = lighten(G.C.JOKER_GREY, 0.5)
+                    colour = PlayLog.config.border or lighten(G.C.JOKER_GREY, 0.5)
                 },
                 nodes = {
                     {
                         n = G.UIT.R,
-                        config = { align = "cm", minw = 1, colour = adjust_alpha(darken(G.C.BLACK, 0.1), 0.8), r = 0.1 },
+                        config = { align = "cm", minw = 1, colour = PlayLog.config.panel_bg or adjust_alpha(darken(G.C.BLACK, 0.1), 0.8), r = 0.1 },
                         nodes = {
                             {
                                 n = G.UIT.C,
@@ -486,8 +486,15 @@ local function pl_draw_config_content(layout)
         love.graphics.print(field.label, cx + swatch_w + 8, fy + 2, nil, 0.62, 0.62)
         love.graphics.setColor(1, 1, 1, 0.75)
         love.graphics.print("#" .. pl_rgb_to_hex(cur_col), cx + swatch_w + 8, fy + 13, nil, 0.78, 0.78)
-        G.playlog_hex_rects[i] = { x = cx, y = fy + 2, w = swatch_w, h = field_h - 4, key = field.key, label = field
-        .label }
+        G.playlog_hex_rects[i] = {
+            x = cx,
+            y = fy + 2,
+            w = swatch_w,
+            h = field_h - 4,
+            key = field.key,
+            label = field
+                .label
+        }
     end
 end
 
@@ -778,8 +785,19 @@ function love.keypressed(key, scancode, isrepeat)
                 local s = pk.hex_input or ""
                 pk.hex_input = s:sub(1, math.max(0, #s - 1))
             else
-                local kp_map = { kp0 = '0', kp1 = '1', kp2 = '2', kp3 = '3', kp4 = '4', kp5 = '5', kp6 = '6', kp7 = '7', kp8 =
-                '8', kp9 = '9' }
+                local kp_map = {
+                    kp0 = '0',
+                    kp1 = '1',
+                    kp2 = '2',
+                    kp3 = '3',
+                    kp4 = '4',
+                    kp5 = '5',
+                    kp6 = '6',
+                    kp7 = '7',
+                    kp8 =
+                    '8',
+                    kp9 = '9'
+                }
                 local char = kp_map[key] or key:upper()
                 if #char == 1 and char:match("^[0-9A-F]$") then
                     local s = pk.hex_input or ""
@@ -811,8 +829,19 @@ function love.keypressed(key, scancode, isrepeat)
                 local s = G.playlog_hex_input or ""
                 G.playlog_hex_input = s:sub(1, math.max(0, #s - 1))
             else
-                local kp_map = { kp0 = '0', kp1 = '1', kp2 = '2', kp3 = '3', kp4 = '4', kp5 = '5', kp6 = '6', kp7 = '7', kp8 =
-                '8', kp9 = '9' }
+                local kp_map = {
+                    kp0 = '0',
+                    kp1 = '1',
+                    kp2 = '2',
+                    kp3 = '3',
+                    kp4 = '4',
+                    kp5 = '5',
+                    kp6 = '6',
+                    kp7 = '7',
+                    kp8 =
+                    '8',
+                    kp9 = '9'
+                }
                 local char = kp_map[key] or key:upper()
                 if #char == 1 and char:match("^[0-9A-F]$") then
                     local s = G.playlog_hex_input or ""
