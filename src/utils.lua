@@ -65,6 +65,38 @@ local function get_indexed_colour(index, fallback, vars)
     return fallback
 end
 
+local function get_tooltip_colour(tooltip_key, fallback)
+    if not tooltip_key then return fallback end
+    local key = tostring(tooltip_key)
+    local center = G and G.P_CENTERS and G.P_CENTERS[key]
+    if not center and G and G.P_SEALS then
+        local seal_key = key
+        if SMODS and SMODS.Seal and SMODS.Seal.badge_to_key then
+            seal_key = SMODS.Seal.badge_to_key[key] or key
+        end
+        center = G.P_SEALS[seal_key]
+    end
+    if center then
+        if center.loc_colour then
+            return copy_colour(center.loc_colour)
+        end
+        local set_key = center.set
+        if set_key and G and G.C and G.C.SECONDARY_SET and G.C.SECONDARY_SET[set_key] then
+            return copy_colour(G.C.SECONDARY_SET[set_key])
+        end
+        if set_key and G and G.C and G.C[string.upper(set_key)] then
+            return copy_colour(G.C[string.upper(set_key)])
+        end
+    end
+    local seal_name = key:lower()
+    if seal_name:find("gold") then return get_balatro_colour("gold", fallback) end
+    if seal_name:find("red") then return get_balatro_colour("red", fallback) end
+    if seal_name:find("blue") then return get_balatro_colour("blue", fallback) end
+    if seal_name:find("purple") then return get_balatro_colour("purple", fallback) end
+
+    return fallback
+end
+
 function PlayLog.parse_text(raw_text, loc_vars)
     local default_colour = copy_colour((G and G.C and G.C.UI and G.C.UI.TEXT_DARK) or { 0.08, 0.08, 0.08, 0.95 })
     local active_colour = copy_colour(default_colour)
@@ -155,6 +187,13 @@ function PlayLog.parse_text(raw_text, loc_vars)
             local tooltip_key = tag:match("T:([^,%}]+)")
             if tooltip_key then
                 active_tooltip = tooltip_key
+                if not var_colour_idx and not colour_key then
+                    local tooltip_colour = get_tooltip_colour(tooltip_key, active_colour)
+                    if tooltip_colour then
+                        active_colour = tooltip_colour
+                        is_colored = true
+                    end
+                end
             end
             local scale_key = tag:match("s:([^,%}]+)")
             if scale_key then

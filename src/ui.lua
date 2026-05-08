@@ -32,6 +32,12 @@ local function pl_clamp(value, minv, maxv)
     return value
 end
 
+local function pl_snap_panel_height(panel_h, min_h, max_h)
+    local chrome_h = 54
+    local rows = math.max(1, math.floor(((panel_h - chrome_h) / PLAYLOG_ROW_HEIGHT) + 0.5))
+    return pl_clamp(rows * PLAYLOG_ROW_HEIGHT + chrome_h, min_h, max_h)
+end
+
 local function pl_draw_rich_segments(segments, x, y, max_x, mouse_x, mouse_y, line_step)
     if not segments then return nil, 1 end
     local draw_x = x
@@ -383,7 +389,8 @@ local function pl_get_layout()
     local max_w = math.max(min_w, sw - 20)
     local max_h = math.max(min_h, sh - 20)
     local panel_w = pl_clamp(tonumber(PlayLog.config.panel_w) or math.min(420, sw - 36), min_w, max_w)
-    local panel_h = pl_clamp(tonumber(PlayLog.config.panel_h) or math.min(420, math.floor(sh * 0.70)), min_h, max_h)
+    local raw_panel_h = pl_clamp(tonumber(PlayLog.config.panel_h) or math.min(420, math.floor(sh * 0.70)), min_h, max_h)
+    local panel_h = pl_snap_panel_height(raw_panel_h, min_h, max_h)
     local slide = G.playlog_slide or 0
     local slide_offset = (1 - slide) * (panel_w + 20)
     local panel_x = math.floor(sw - panel_w - 18 + slide_offset) + (G.playlog_drag_dx or 0)
@@ -1325,9 +1332,9 @@ function love.mousemoved(x, y, dx, dy)
                 new_w = pl_clamp(base_w - dxm, min_w, max_w)
             end
             if mode == 'bottom' or mode == 'bl' or mode == 'br' then
-                new_h = pl_clamp(base_h + dym, min_h, max_h)
+                new_h = pl_snap_panel_height(base_h + dym, min_h, max_h)
             elseif mode == 'top' or mode == 'tl' or mode == 'tr' then
-                new_h = pl_clamp(base_h - dym, min_h, max_h)
+                new_h = pl_snap_panel_height(base_h - dym, min_h, max_h)
                 new_dy = base_dy - (new_h - base_h)
             end
             PlayLog.config.panel_w = new_w
