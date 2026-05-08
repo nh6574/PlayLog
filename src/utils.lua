@@ -54,67 +54,122 @@ local function get_balatro_colour(tag, fallback)
     return fallback
 end
 
-function PlayLog.parse_text(raw_text)
+local function get_indexed_colour(index, fallback, vars)
+    local cleaned_index = tostring(index or ""):gsub("^%s+", ""):gsub("%s+$", "")
+    local idx = tonumber(cleaned_index)
+    if not idx then return fallback end
+    idx = math.floor(idx)
+    if vars and type(vars.colours) == 'table' and vars.colours[idx] then
+        return copy_colour(vars.colours[idx])
+    end
+    return fallback
+end
+
+function PlayLog.parse_text(raw_text, loc_vars)
     local default_colour = copy_colour((G and G.C and G.C.UI and G.C.UI.TEXT_DARK) or { 0.08, 0.08, 0.08, 0.95 })
     local active_colour = copy_colour(default_colour)
+    local active_bg = nil
     local active_tooltip = nil
+    local active_scale = 1
+    local active_underline = nil
+    local active_strike = nil
     local is_colored = false
     local segments = {}
+    local active_bg_mode = nil
+    local function push_segment(seg_text)
+        if seg_text == "" then return end
+        if active_bg_mode == 'X' then
+            seg_text = seg_text:gsub("%s+", "")
+            if seg_text == "" then return end
+        end
+        segments[#segments + 1] = {
+            text = seg_text,
+            colour = is_colored and copy_colour(active_colour) or nil,
+            plain = not is_colored,
+            tooltip = active_tooltip,
+            bg_colour = active_bg and copy_colour(active_bg) or nil,
+            scale = active_scale,
+            underline_colour = active_underline and copy_colour(active_underline) or nil,
+            strikethrough_colour = active_strike and copy_colour(active_strike) or nil,
+        }
+    end
     local i = 1
     local text = tostring(raw_text or "")
+    text = text:gsub("\\n", "\n")
+    text = text:gsub("/n", "\n")
+    local vars = type(loc_vars) == 'table' and (loc_vars.vars or loc_vars) or nil
+    if type(vars) == 'table' then
+        text = text:gsub("#(%d+)#", function(n)
+            local idx = tonumber(n)
+            local value = idx and vars[idx] or nil
+            if value ~= nil then
+                return tostring(value)
+            end
+            return "#" .. n .. "#"
+        end)
+    end
     while i <= #text do
         local open = text:find("{", i, true)
         if not open then
             local tail = text:sub(i)
-            if tail ~= "" then
-                segments[#segments + 1] = {
-                    text = tail,
-                    colour = is_colored and copy_colour(active_colour) or nil,
-                    plain = not
-                        is_colored,
-                    tooltip = active_tooltip
-                }
-            end
+            push_segment(tail)
             break
         end
         if open > i then
-            local plain = text:sub(i, open - 1)
-            if plain ~= "" then
-                segments[#segments + 1] = {
-                    text = plain,
-                    colour = is_colored and copy_colour(active_colour) or nil,
-                    plain = not is_colored,
-                    tooltip = active_tooltip
-                }
-            end
+            push_segment(text:sub(i, open - 1))
         end
         local close = text:find("}", open + 1, true)
         if not close then
-            local rest = text:sub(open)
-            segments[#segments + 1] = {
-                text = rest,
-                colour = is_colored and copy_colour(active_colour) or nil,
-                plain = not
-                    is_colored,
-                tooltip = active_tooltip
-            }
+            push_segment(text:sub(open))
             break
         end
         local tag = text:sub(open + 1, close - 1)
         if tag == "" then
             active_colour = copy_colour(default_colour)
+            active_bg = nil
+            active_bg_mode = nil
             active_tooltip = nil
+            active_scale = 1
+            active_underline = nil
+            active_strike = nil
             is_colored = false
         else
+            local var_colour_idx = tag:match("V:([^,%}]+)")
             local colour_key = tag:match("C:([^,%}]+)")
-            if colour_key then
+            if var_colour_idx then
+                active_colour = get_indexed_colour(var_colour_idx, active_colour, vars)
+                is_colored = true
+            elseif colour_key then
                 active_colour = get_balatro_colour(colour_key, active_colour)
                 is_colored = true
             end
-
+            local var_bg_idx = tag:match("B:([^,%}]+)")
+            local bg_key = tag:match("X:([^,%}]+)")
+            if var_bg_idx then
+                active_bg = get_indexed_colour(var_bg_idx, active_bg or active_colour, vars)
+                active_bg_mode = 'B'
+            elseif bg_key then
+                active_bg = get_balatro_colour(bg_key, active_bg or active_colour)
+                active_bg_mode = 'X'
+            end
             local tooltip_key = tag:match("T:([^,%}]+)")
             if tooltip_key then
                 active_tooltip = tooltip_key
+            end
+            local scale_key = tag:match("s:([^,%}]+)")
+            if scale_key then
+                local parsed_scale = tonumber(scale_key)
+                if parsed_scale and parsed_scale > 0 then
+                    active_scale = parsed_scale
+                end
+            end
+            local underline_key = tag:match("u:([^,%}]+)")
+            if underline_key then
+                active_underline = get_balatro_colour(underline_key, active_colour)
+            end
+            local strike_key = tag:match("st:([^,%}]+)")
+            if strike_key then
+                active_strike = get_balatro_colour(strike_key, active_colour)
             end
         end
         i = close + 1
