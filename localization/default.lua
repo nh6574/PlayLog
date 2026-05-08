@@ -32,7 +32,7 @@ return {
             converts_individual = "#1# into {C:attention}#2#",
             applied = "{C:attention}#1#{} has applied {C:attention}#3#{} to #2#",
             copies = "{C:attention}#1#{} copied {C:attention}#2#",
-            copies_into = "{C:attention}#1#{} turned {C:attention}#2#{} into {C:attention}#3#{}",
+            copies_into = "{C:attention}#1#{} turned {C:attention}#3#{} into {C:attention}#2#{}",
             money = "{C:attention}#1#{} gave {C:money}+$#2#{}",
             noped = "{C:attention}#1#{} noped!",
         }

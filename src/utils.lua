@@ -194,7 +194,7 @@ end
 ---@param values table
 ---@return string
 function PlayLog.loc_list(values)
-    if not values then return "ERROR" end
+    if not values or #values == 0 then return "ERROR" end
     if #values == 1 then return tostring(values[1]) end
 
     local text = tostring(values[1])

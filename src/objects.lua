@@ -144,7 +144,7 @@ PlayLog.LogType {
             conversion = localize(args.sticker, "labels")
         end
 
-        return PlayLog.localize("converts",
+        return PlayLog.localize("applied",
             { format_card(args.card), PlayLog.loc_list(format_card_list(args.applied)), conversion or "ERROR" })
     end
 }
