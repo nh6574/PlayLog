@@ -1,0 +1,37 @@
+[manifest]
+version = "0.1.0"
+dump_lua = true
+priority = 0
+
+# G.FUNCS.cash_out
+[[patches]]
+[patches.pattern]
+target = "functions/button_callbacks.lua"
+pattern = "ease_dollars(G.GAME.current_round.dollars)"
+position = 'before'
+match_indent = true
+payload = '''
+PlayLog.log{ type = "cash_out", amount = G.GAME.current_round.dollars }
+'''
+
+# G.FUNCS.skip_blind
+[[patches]]
+[patches.pattern]
+target = "functions/button_callbacks.lua"
+pattern = "add_tag(_tag.config.ref_table)"
+position = 'after'
+match_indent = true
+payload = '''
+PlayLog.log{ type = "skip_blind", tag = _tag.config.ref_table.key, blind = G.GAME.round_resets.blind_choices[G.GAME.blind_on_deck] }
+'''
+
+# Lost game
+[[patches]]
+[patches.pattern]
+target = "game.lua"
+pattern = "if G.GAME.round_resets.ante <= G.GAME.win_ante then --Only add Jimbo to say a quip if the game over happens when the run is lost"
+position = 'before'
+match_indent = true
+payload = '''
+PlayLog.log{ type = "lost", endless = G.GAME.round_resets.ante > G.GAME.win_ante }
+'''

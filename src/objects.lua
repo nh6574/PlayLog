@@ -25,6 +25,29 @@ PlayLog.LogType {
     end
 }
 
+local function format_center_from_key(center_key)
+    local center = G.P_CENTERS[center_key] or G.P_SEALS[center_key] or G.P_BLINDS[center_key] or G.P_TAGS[center_key] or
+        G.P_STAKES[center_key]
+    local set = center.set or (G.P_SEALS[center_key] and "Seal") or (G.P_BLINDS[center_key] and "Blind") or
+        (G.P_TAGS[center_key] and "Tag") or (G.P_STAKES[center_key] and "Stake")
+    if not center then return "ERROR" end
+    local vars = {}
+    if center.loc_vars then
+        vars = center:loc_vars({}, center:create_fake_card()) or {}
+    end
+    if set == "Seal" then
+        return "{T:" ..
+            center_key ..
+            "}" .. localize((vars.name_key or vars.key or center_key):lower() .. "_seal", "labels")
+    end
+    if set == "Booster" then vars.set = "Other" end
+    return "{T:" ..
+        center_key ..
+        "}" ..
+        localize { type = "name_text", key = vars.name_key or vars.key or center_key, set = vars.name_set or vars.set or set } ..
+        "{}"
+end
+
 --TODO: Handle card information properly instead of this
 local function format_card(card)
     if not card then return "ERROR" end
@@ -37,9 +60,18 @@ local function format_card(card)
     if card.playing_card then -- TODO: other than figuring how to pass the values/modifiers to the UI, how are no rank/suit cards displayed?
         return PlayLog.localize_rank_of_suit(card.base.value, card.base.suit)
     end
+
+    local center = card.config.center
+    local vars = {}
+    if center.loc_vars then
+        vars = center:loc_vars({}, center:create_fake_card()) or {}
+    end
+    if card.config.center.set == "Booster" then vars.set = "Other" end
     return "{T:" ..
         card.config.center.key ..
-        "}" .. localize { type = "name_text", key = card.config.center.key, set = card.config.center.set } .. "{}"
+        "}" ..
+        localize { type = "name_text", key = vars.name_key or vars.key or card.config.center.key, set = vars.name_set or vars.set or card.config.center.set } ..
+        "{}"
 end
 
 local function format_card_list(list)
@@ -49,24 +81,6 @@ local function format_card_list(list)
         card_list[#card_list + 1] = format_card(card)
     end
     return card_list
-end
-
-local function format_center_from_key(center_key)
-    local center = G.P_CENTERS[center_key] or G.P_SEALS[center_key] or G.P_BLINDS[center_key] or G.P_TAGS[center_key] or
-        G.P_STAKES[center_key]
-    local set = center.set or (G.P_SEALS[center_key] and "Seal") or (G.P_BLINDS[center_key] and "Blind") or
-        (G.P_TAGS[center_key] and "Tag") or (G.P_STAKES[center_key] and "Stake")
-    if not center then return "ERROR" end
-    if set == "Seal" then
-        return "{T:" ..
-            center_key ..
-            "}" .. localize(center_key:lower() .. "_seal", "labels")
-    end
-    return "{T:" ..
-        center_key ..
-        "}" ..
-        localize { type = "name_text", key = center_key, set = set } ..
-        "{}"
 end
 
 PlayLog.LogType {
@@ -90,9 +104,44 @@ PlayLog.LogType {
 }
 
 PlayLog.LogType {
+    key = "defeated_blind",
+    get_message = function(self, args)
+        return PlayLog.localize("defeated_blind", { format_center_from_key(args.blind) })
+    end
+}
+
+PlayLog.LogType {
+    key = "cash_out",
+    get_message = function(self, args)
+        return PlayLog.localize("cash_out", { args.amount })
+    end
+}
+
+PlayLog.LogType {
+    key = "skip_blind",
+    get_message = function(self, args)
+        if args.tag then
+            return PlayLog.localize("skip_blind_for",
+                { format_center_from_key(args.blind), format_center_from_key(args.tag) })
+        end
+        return PlayLog.localize("skip_blind", { format_center_from_key(args.blind) })
+    end
+}
+
+PlayLog.LogType {
     key = "start_round",
     get_message = function(self, args)
         return PlayLog.localize("start_round", { args.round })
+    end
+}
+
+PlayLog.LogType {
+    key = "start_ante",
+    get_message = function(self, args)
+        if args.modified then
+            return PlayLog.localize("ante_modified", { args.ante, args.ante + args.modified })
+        end
+        return PlayLog.localize("start_ante", { args.ante })
     end
 }
 
@@ -250,5 +299,48 @@ PlayLog.LogType {
             { PlayLog.get_area_name(args.area),
                 args.old_size or args.area.config.card_limit - (args.amount or 0),
                 args.new_size or args.area.config.card_limit })
+    end
+}
+
+PlayLog.LogType {
+    key = "sell",
+    get_message = function(self, args)
+        return PlayLog.localize("sell", { format_card(args.card), args.amount })
+    end
+}
+
+PlayLog.LogType {
+    key = "buy",
+    get_message = function(self, args)
+        return PlayLog.localize("buy", { format_card(args.card), args.amount })
+    end
+}
+
+PlayLog.LogType {
+    key = "booster_opened",
+    get_message = function(self, args)
+        return PlayLog.localize("booster_opened",
+            { format_card(args.booster), PlayLog.loc_list(format_card_list(args.cards)) })
+    end
+}
+
+PlayLog.LogType {
+    key = "booster_skipped",
+    get_message = function(self, args)
+        return PlayLog.localize("booster_skipped", { format_card(args.booster) })
+    end
+}
+
+PlayLog.LogType {
+    key = "win",
+    get_message = function(self, args)
+        return PlayLog.localize("win")
+    end
+}
+
+PlayLog.LogType {
+    key = "lost",
+    get_message = function(self, args)
+        return PlayLog.localize(args.endless and "lost_endless" or "lost")
     end
 }

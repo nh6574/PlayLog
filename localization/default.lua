@@ -29,7 +29,13 @@ return {
             started = "Started game on {C:attention}#1#{} and {C:attention}#2#{}",
             started_challenge = "Started {C:attention}#1#{} on {C:attention}#2#{} and {C:attention}#3#{}",
             selected_blind = "Selected {C:attention}#1#{}",
+            defeated_blind = "Defeated {C:attention}#1#{}",
+            skip_blind = "Skipped {C:attention}#1#{}",
+            skip_blind_for = "Skipped {C:attention}#1#{} for {C:attention}#2#{}",
             start_round = "Started {C:attention}round #1#{}",
+            start_ante = "Started {C:attention}Ante #1#{}",
+            ante_modified = "{C:attention}Ante{} changed {C:red}#1#{} -> {C:red}#2#{}",
+            cash_out = "{C:money}$#1#{} cash out",
             creates = "{C:attention}#1#{} created {C:attention}#2#",
             destroys = "{C:attention}#1#{} destroyed {C:attention}#2#",
             added = "{C:attention}#1#{} added",
@@ -48,6 +54,13 @@ return {
             area_size = "{C:attention}#1#{} size changed: {C:red}#2#{} -> {C:red}#3#{}",
             change_area_size = "{C:attention}#1#{} increased {C:attention}#2#{} size by {C:green}#3#",
             change_area_size_neg = "{C:attention}#1#{} reduced {C:attention}#2#{} size by {C:green}#3#",
+            sell = "Sold {C:attention}#1#{} for {C:money}$#2#{}",
+            buy = "Bought {C:attention}#1#{} for {C:money}$#2#{}",
+            booster_opened = "Opened {C:attention}#1#{} that contains #2#",
+            booster_skipped = "Skipped {C:attention}#1#{}",
+            win = "Won game!",
+            lost = "Lost game!",
+            lost_endless = "Lost Endless Mode!",
         }
     }
 }
