@@ -148,6 +148,15 @@ local function pl_build_plain_log_text(run_id, plain_entries)
     return table.concat(out, "\n")
 end
 
+local function pl_reset_runtime_entries()
+    G.playlog_entries = {}
+    G.playlog_pending_entries = {}
+    G.playlog_pending_start = 1
+    G.playlog_plain_entries = {}
+    G.playlog_saved_segments = {}
+    G.playlog_scroll_shift = nil
+end
+
 function LogStore.ensure_log_file_initialized()
     if not (G and G.GAME) then return nil end
     local path = pl_get_log_file_path()
@@ -196,11 +205,7 @@ function LogStore.restore_from_game()
     if not (G and G.GAME) then return 0 end
 
     local restored = 0
-    G.playlog_entries = {}
-    G.playlog_pending_entries = {}
-    G.playlog_pending_start = 1
-    G.playlog_plain_entries = {}
-    G.playlog_saved_segments = {}
+    pl_reset_runtime_entries()
     G.GAME.playlog_segment_payloads = G.GAME.playlog_segment_payloads or {}
 
     for i = 1, #G.GAME.playlog_segment_payloads do
@@ -216,8 +221,20 @@ function LogStore.restore_from_game()
         end
     end
     G.GAME.playlog_log_initialized = true
-    G.playlog_scroll_shift = nil
     return restored
+end
+
+function LogStore.begin_new_run()
+    if not (G and G.GAME) then return nil end
+    local run_id = pl_make_run_id()
+    local log_path = PLAYLOG_RUNS_DIR .. "/" .. tostring(run_id) .. ".txt"
+    G.GAME.playlog_run_id = run_id
+    G.GAME.playlog_log_path = log_path
+    G.GAME.playlog_log_initialized = nil
+    G.GAME.playlog_segment_payloads = {}
+    pl_reset_runtime_entries()
+    G.playlog_last_log_path = log_path
+    return LogStore.ensure_log_file_initialized()
 end
 
 function LogStore.prepare_start_run()
