@@ -8,6 +8,7 @@ local pl_tooltip_card = nil
 local playlog_mousemoved_ref = nil
 local pl_cursor_cache = {}
 local pl_cursor_current = nil
+local pl_log_store = PlayLog.log_store
 
 local function pl_set_cursor(cursor_name)
     if pl_cursor_current == cursor_name then return end
@@ -30,6 +31,33 @@ local function pl_clamp(value, minv, maxv)
     if value < minv then return minv end
     if value > maxv then return maxv end
     return value
+end
+
+local function pl_plain_from_segments(segments)
+    return pl_log_store.plain_from_segments(segments)
+end
+
+local function pl_restore_log_from_file()
+    return pl_log_store.restore_from_game()
+end
+
+local function pl_append_rich_segments_to_file(segments)
+    return pl_log_store.append_rich_segments(segments)
+end
+
+local function pl_ensure_log_file_initialized()
+    return pl_log_store.ensure_log_file_initialized()
+end
+
+local function pl_copy_log_to_clipboard()
+    local lines = G.playlog_plain_entries or {}
+    local text = table.concat(lines, "\n")
+    if love and love.system and love.system.setClipboardText then
+        love.system.setClipboardText(text)
+        G.playlog_copy_feedback_t = 1.2
+        return true
+    end
+    return false
 end
 
 local function pl_snap_panel_height(panel_h, min_h, max_h)
@@ -406,6 +434,14 @@ local function pl_get_layout()
     local button_h = 36
     local button_x = sw - button_w - 12
     local button_y = sh - button_h - 100
+    local cfg_btn_w = 28
+    local cfg_btn_h = 18
+    local cfg_btn_x = panel_x + panel_w - 40
+    local cfg_btn_y = panel_y + 5
+    local copy_btn_w = 34
+    local copy_btn_h = 18
+    local copy_btn_x = cfg_btn_x - copy_btn_w - 4
+    local copy_btn_y = cfg_btn_y
     return {
         panel_x = panel_x,
         panel_y = panel_y,
@@ -424,10 +460,14 @@ local function pl_get_layout()
         scrollbar_y = content_y,
         scrollbar_w = 6,
         scrollbar_h = content_h,
-        cfg_btn_x = panel_x + panel_w - 40,
-        cfg_btn_y = panel_y + 5,
-        cfg_btn_w = 28,
-        cfg_btn_h = 18,
+        cfg_btn_x = cfg_btn_x,
+        cfg_btn_y = cfg_btn_y,
+        cfg_btn_w = cfg_btn_w,
+        cfg_btn_h = cfg_btn_h,
+        copy_btn_x = copy_btn_x,
+        copy_btn_y = copy_btn_y,
+        copy_btn_w = copy_btn_w,
+        copy_btn_h = copy_btn_h,
         resize_corner = 14,
         resize_edge = 6,
         resize_tl_x = panel_x,
@@ -566,6 +606,7 @@ end
 
 function pl_enqueue_rich_log(raw_body)
     G.playlog_pending_entries = G.playlog_pending_entries or {}
+    G.playlog_plain_entries = G.playlog_plain_entries or {}
     local time_text = PlayLog.get_formatted_time(PlayLog.CLOCK_FORMATS[4])
     local message_text = raw_body
     local loc_vars = nil
@@ -574,9 +615,13 @@ function pl_enqueue_rich_log(raw_body)
         loc_vars = raw_body.loc_vars or raw_body.vars
     end
     local raw_text = "{C:inactive}" .. time_text .. " " .. tostring(message_text or "")
+    local segments = PlayLog.parse_text(raw_text, loc_vars)
+    local plain_line = pl_plain_from_segments(segments)
+    G.playlog_plain_entries[#G.playlog_plain_entries + 1] = plain_line
+    pl_append_rich_segments_to_file(segments)
 
     G.playlog_pending_entries[#G.playlog_pending_entries + 1] = {
-        segments = PlayLog.parse_text(raw_text, loc_vars)
+        segments = segments
     }
 end
 
@@ -773,6 +818,7 @@ local function pl_draw_panel(layout)
     local mx0, my0 = love.mouse.getPosition()
     local header_hov = pl_point_in_rect(mx0, my0, layout.panel_x, layout.panel_y, layout.panel_w, layout.header_h)
         and not pl_point_in_rect(mx0, my0, layout.cfg_btn_x, layout.cfg_btn_y, layout.cfg_btn_w, layout.cfg_btn_h)
+        and not pl_point_in_rect(mx0, my0, layout.copy_btn_x, layout.copy_btn_y, layout.copy_btn_w, layout.copy_btn_h)
     local resize_tl_hov = pl_point_in_rect(mx0, my0, layout.resize_tl_x, layout.resize_tl_y, layout.resize_corner, layout.resize_corner)
     local resize_tr_hov = pl_point_in_rect(mx0, my0, layout.resize_tr_x, layout.resize_tr_y, layout.resize_corner, layout.resize_corner)
     local resize_bl_hov = pl_point_in_rect(mx0, my0, layout.resize_bl_x, layout.resize_bl_y, layout.resize_corner, layout.resize_corner)
@@ -800,10 +846,41 @@ local function pl_draw_panel(layout)
     end
     local cfg_open = G.playlog_config_open
     local cfg_hov = pl_point_in_rect(mx0, my0, layout.cfg_btn_x, layout.cfg_btn_y, layout.cfg_btn_w, layout.cfg_btn_h)
+    local copy_hov = pl_point_in_rect(mx0, my0, layout.copy_btn_x, layout.copy_btn_y, layout.copy_btn_w, layout.copy_btn_h)
     love.graphics.setColor(pl_col('border', 0.95, 0.73, 0.25, cfg_open and 0.9 or (cfg_hov and 0.7 or 0.35)))
     love.graphics.rectangle("fill", layout.cfg_btn_x, layout.cfg_btn_y, layout.cfg_btn_w, layout.cfg_btn_h, 4, 4)
     love.graphics.setColor(0, 0, 0, cfg_open and 0.8 or 0.6)
     love.graphics.print(cfg_open and "LOG" or "CFG", layout.cfg_btn_x + 2, layout.cfg_btn_y + 2, nil, 0.70, 0.70)
+    love.graphics.setColor(pl_col('border', 0.95, 0.73, 0.25, copy_hov and 0.8 or 0.45))
+    love.graphics.rectangle("fill", layout.copy_btn_x, layout.copy_btn_y, layout.copy_btn_w, layout.copy_btn_h, 4, 4)
+    love.graphics.setColor(0, 0, 0, 0.7)
+    local copied = (G.playlog_copy_feedback_t or 0) > 0
+    love.graphics.print(copied and "OK" or "CPY", layout.copy_btn_x + 4, layout.copy_btn_y + 2, nil, 0.66, 0.66)
+    if copied then
+        love.graphics.setColor(pl_col('header_text', 0.95, 0.73, 0.25, 0.9))
+        local copied_scale = 0.60
+        local copied_text = "COPIED"
+        local font = love.graphics.getFont()
+        local copied_w = font:getWidth(copied_text) * copied_scale
+        local title_w = font:getWidth("PLAY LOG") * 0.82
+        local lane_pad = 8
+        local dots_half_span = 18
+        local left_min_x = layout.panel_x + 14 + title_w + lane_pad
+        local left_max_x = hdr_cx - dots_half_span - copied_w
+        local right_min_x = hdr_cx + dots_half_span
+        local right_max_x = layout.copy_btn_x - copied_w - lane_pad
+        local copied_x
+        if right_max_x >= right_min_x then
+            copied_x = right_min_x
+        elseif left_max_x >= left_min_x then
+            copied_x = left_max_x
+        else
+            local min_x = layout.panel_x + 14 + title_w + lane_pad
+            local max_x = layout.copy_btn_x - copied_w - lane_pad
+            copied_x = pl_clamp(hdr_cx - copied_w * 0.5, min_x, max_x)
+        end
+        love.graphics.print(copied_text, copied_x, layout.panel_y + 7, nil, copied_scale, copied_scale)
+    end
     --resize handle (bottom-right)
     local br1, br2, br3 = pl_col('border', 0.95, 0.73, 0.25, 1)
     local resize_hov = resize_tl_hov or resize_tr_hov or resize_bl_hov or resize_br_hov
@@ -1017,9 +1094,11 @@ end
 local game_start_run_ref = Game.start_run
 function Game:start_run(args)
     game_start_run_ref(self, args)
+    pl_log_store.prepare_start_run()
     G.playlog_entries         = {}
     G.playlog_pending_entries = {}
     G.playlog_pending_start   = 1
+    G.playlog_plain_entries   = {}
     G.playlog_visible         = true
     G.playlog_slide           = 0
     G.playlog_config_open     = false
@@ -1028,6 +1107,12 @@ function Game:start_run(args)
     G.playlog_hex_input       = nil
     G.playlog_picker          = nil
     G.playlog_hovered_tooltip = nil
+    G.playlog_copy_feedback_t = 0
+    pl_restore_log_from_file()
+    if G and G.GAME then
+        G.GAME.playlog_log_initialized = nil
+    end
+    pl_ensure_log_file_initialized()
     pl_remove_tooltip_card()
 end
 
@@ -1035,6 +1120,9 @@ local game_update_ref = Game.update
 function Game:update(dt)
     local ret = game_update_ref(self, dt)
     if pl_is_run_active() then
+        if (G.playlog_copy_feedback_t or 0) > 0 then
+            G.playlog_copy_feedback_t = math.max(0, (G.playlog_copy_feedback_t or 0) - dt)
+        end
         pl_flush_queue(PLAYLOG_ROWS_PER_FRAME)
         -- panel slide
         local target = G.playlog_visible and 1 or 0
@@ -1223,6 +1311,8 @@ function love.mousepressed(x, y, button, istouch, presses)
             G.playlog_resize_base_h = layout.panel_h
             G.playlog_resize_base_dx = G.playlog_drag_dx or 0
             G.playlog_resize_base_dy = G.playlog_drag_dy or 0
+        elseif G.playlog_visible and pl_point_in_rect(x, y, layout.copy_btn_x, layout.copy_btn_y, layout.copy_btn_w, layout.copy_btn_h) then
+            pl_copy_log_to_clipboard()
         elseif G.playlog_visible and pl_point_in_rect(x, y, layout.cfg_btn_x, layout.cfg_btn_y, layout.cfg_btn_w, layout.cfg_btn_h) then
             --CFG header button: toggles config panel, or closes picker back to list
             if G.playlog_picker then
