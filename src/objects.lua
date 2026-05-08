@@ -29,7 +29,7 @@ PlayLog.LogType {
 local function format_card(card)
     if not card then return "ERROR" end
     if type(card) == "string" then
-        if G.P_CENTERS[card] or G.P_SEALS[card] or G.P_BLINDS[card] or G.P_TAGS[card] then
+        if G.P_CENTERS[card] or G.P_SEALS[card] or G.P_BLINDS[card] or G.P_TAGS[card] or G.P_STAKES[card] then
             return format_center_from_key(card)
         end
         return card
@@ -52,16 +52,49 @@ local function format_card_list(list)
 end
 
 local function format_center_from_key(center_key)
-    local center = G.P_CENTERS[center_key] or G.P_SEALS[card] or G.P_BLINDS[card] or G.P_TAGS[card]
-    local set = center.set or (G.P_SEALS[card] and "Seal") or (G.P_BLINDS[card] and "Blind") or
-        (G.P_TAGS[card] and "Tag")
+    local center = G.P_CENTERS[center_key] or G.P_SEALS[center_key] or G.P_BLINDS[center_key] or G.P_TAGS[center_key] or
+        G.P_STAKES[center_key]
+    local set = center.set or (G.P_SEALS[center_key] and "Seal") or (G.P_BLINDS[center_key] and "Blind") or
+        (G.P_TAGS[center_key] and "Tag") or (G.P_STAKES[center_key] and "Stake")
     if not center then return "ERROR" end
+    if set == "Seal" then
+        return "{T:" ..
+            center_key ..
+            "}" .. localize(center_key:lower() .. "_seal", "labels")
+    end
     return "{T:" ..
         center_key ..
         "}" ..
-        localize { type = "name_text", key = set == "Seal" and center_key:lower() .. "_seal" or center_key, set = set } ..
+        localize { type = "name_text", key = center_key, set = set } ..
         "{}"
 end
+
+PlayLog.LogType {
+    key = "started",
+    get_message = function(self, args)
+        local deck = format_center_from_key(args.deck)
+        local stake = format_center_from_key(args.stake)
+        if args.challenge then
+            return PlayLog.localize("started_challenge",
+                { localize(args.challenge, 'challenge_names'), deck, stake })
+        end
+        return PlayLog.localize("started", { deck, stake })
+    end
+}
+
+PlayLog.LogType {
+    key = "selected_blind",
+    get_message = function(self, args)
+        return PlayLog.localize("selected_blind", { format_center_from_key(args.blind) })
+    end
+}
+
+PlayLog.LogType {
+    key = "start_round",
+    get_message = function(self, args)
+        return PlayLog.localize("start_round", { args.round })
+    end
+}
 
 PlayLog.LogType {
     key = "creates",

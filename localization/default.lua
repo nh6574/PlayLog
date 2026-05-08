@@ -26,6 +26,10 @@ return {
             all_hands = "all hands",
 
             -- Logging
+            started = "Started game on {C:attention}#1#{} and {C:attention}#2#{}",
+            started_challenge = "Started {C:attention}#1#{} on {C:attention}#2#{} and {C:attention}#3#{}",
+            selected_blind = "Selected {C:attention}#1#{}",
+            start_round = "Started {C:attention}round #1#{}",
             creates = "{C:attention}#1#{} created {C:attention}#2#",
             destroys = "{C:attention}#1#{} destroyed {C:attention}#2#",
             added = "{C:attention}#1#{} added",

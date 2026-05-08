@@ -30,6 +30,17 @@ SMODS.current_mod.calculate = function(self, context)
             end
         }))
     end
+
+    if context.setting_blind then
+        PlayLog.log { type = "selected_blind", blind = G.GAME.blind.config.blind.key }
+        PlayLog.log { type = "start_round", round = G.GAME.round }
+    end
+end
+
+SMODS.current_mod.reset_game_globals = function(run_start)
+    if run_start then
+        PlayLog.log { type = "started", deck = G.GAME.selected_back_key.key, stake = G.P_CENTER_POOLS.Stake[G.GAME.stake].key, challenge = G.GAME.challenge }
+    end
 end
 
 local SMODS_upgrade_poker_hands_ref = SMODS.upgrade_poker_hands
