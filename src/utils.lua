@@ -67,7 +67,13 @@ function PlayLog.parse_text(raw_text)
         if not open then
             local tail = text:sub(i)
             if tail ~= "" then
-                segments[#segments + 1] = { text = tail, colour = is_colored and copy_colour(active_colour) or nil, plain = not is_colored, tooltip = active_tooltip }
+                segments[#segments + 1] = {
+                    text = tail,
+                    colour = is_colored and copy_colour(active_colour) or nil,
+                    plain = not
+                        is_colored,
+                    tooltip = active_tooltip
+                }
             end
             break
         end
@@ -85,7 +91,13 @@ function PlayLog.parse_text(raw_text)
         local close = text:find("}", open + 1, true)
         if not close then
             local rest = text:sub(open)
-            segments[#segments + 1] = { text = rest, colour = is_colored and copy_colour(active_colour) or nil, plain = not is_colored, tooltip = active_tooltip }
+            segments[#segments + 1] = {
+                text = rest,
+                colour = is_colored and copy_colour(active_colour) or nil,
+                plain = not
+                    is_colored,
+                tooltip = active_tooltip
+            }
             break
         end
         local tag = text:sub(open + 1, close - 1)
@@ -108,4 +120,71 @@ function PlayLog.parse_text(raw_text)
         i = close + 1
     end
     return segments
+end
+
+---Fills the variables in formatted text
+---@param text string
+---@param vars table
+---@return string?
+function PlayLog.fill_vars(text, vars)
+    if not text or not vars then return text end
+    local ret, _ = text:gsub("#(%d+)#", function(i)
+        return vars[tonumber(i)] or "nil"
+    end)
+
+    return ret
+end
+
+---Returns a localized list of values
+---@param values table
+---@return string
+function PlayLog.loc_list(values)
+    if not values then return "ERROR" end
+    if #values == 1 then return tostring(values[1]) end
+
+    local text = tostring(values[1])
+    for i = 2, #values - 1 do
+        text = PlayLog.localize("separator", { text, values[i] })
+    end
+
+    text = PlayLog.localize("end_separator", { text, values[#values] })
+
+    return text
+end
+
+---Returns a formatted string from the PlayLog localization
+---@param key string
+---@param vars table?
+---@return string
+function PlayLog.localize(key, vars)
+    local text = G.localization.misc.playlog[key]
+    if not text then return "ERROR" end
+    vars = vars or {}
+
+    return PlayLog.fill_vars(text, vars)
+end
+
+---Gets the localized name of the area
+---@param area CardArea|table
+---@return string?
+function PlayLog.get_area_name(area)
+    local area_names = {
+        [G.jokers] = "joker_area",
+        [G.consumeables] = "consumable_area",
+        [G.hand] = "hand_area",
+        [G.deck] = "deck_area"
+    }
+    return area_names[area] and PlayLog.localize(area_names[area]) or nil
+end
+
+---Localize "rank of suit"
+---@param rank string rank key (value)
+---@param suit string suit key
+---@return string
+function PlayLog.localize_rank_of_suit(rank, suit)
+    return PlayLog.localize("rank_of_suit",
+        {
+            localize(rank, 'ranks'),
+            localize(suit, 'suits_plural'),
+        })
 end

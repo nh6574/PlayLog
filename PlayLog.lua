@@ -1,6 +1,6 @@
 PlayLog = {}
 
-PlayLog.mod    = SMODS.current_mod
+PlayLog.mod = SMODS.current_mod
 PlayLog.config = SMODS.current_mod.config
 
 assert(SMODS.current_mod.lovely,
@@ -10,3 +10,6 @@ assert(SMODS.load_file("src/utils.lua"))()
 assert(SMODS.load_file("src/mod_info.lua"))()
 assert(SMODS.load_file("src/config.lua"))()
 assert(SMODS.load_file("src/ui.lua"))()
+assert(SMODS.load_file("src/objects.lua"))()
+assert(SMODS.load_file("src/api.lua"))()
+assert(SMODS.load_file("src/logging.lua"))()

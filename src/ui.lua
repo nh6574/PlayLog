@@ -360,7 +360,7 @@ local function pl_get_max_shift()
     return math.max(#G.playlog_entries - PLAYLOG_VISIBLE_ROWS, 0)
 end
 
-local function pl_enqueue_rich_log(raw_body)
+function pl_enqueue_rich_log(raw_body)
     G.playlog_pending_entries = G.playlog_pending_entries or {}
     local time_text = PlayLog.get_formatted_time(PlayLog.CLOCK_FORMATS[4])
     local raw_text = "{C:inactive}" .. time_text .. " " .. tostring(raw_body or "")

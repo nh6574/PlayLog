@@ -1,0 +1,193 @@
+[manifest]
+version = "0.1.0"
+dump_lua = true
+priority = 0
+
+## Tarots
+
+# The Fool
+[[patches]]
+[patches.pattern]
+target = "card.lua"
+pattern = "local card = create_card('Tarot_Planet', G.consumeables, nil, nil, nil, nil, G.GAME.last_tarot_planet, 'fool')"
+position = 'after'
+match_indent = true
+payload = '''
+PlayLog.log{ type = "creates", card = self, created = { card } }
+'''
+
+# The Magician, The Empress, The Hierophant, The Lovers, The Chariot, Justice, The Devil, The Tower
+[[patches]]
+[patches.pattern]
+target = "card.lua"
+pattern = '''
+for i=1, #G.hand.highlighted do
+    G.E_MANAGER:add_event(Event({trigger = 'after',delay = 0.1,func = function() G.hand.highlighted[i]:set_ability(G.P_CENTERS[self.ability.consumeable.mod_conv]);return true end }))
+end
+'''
+position = 'after'
+match_indent = true
+payload = '''
+PlayLog.log { type = "converts", card = self, converted = G.hand.highlighted, enhancement = self.ability.consumeable.mod_conv }
+'''
+
+# The Emperor and The High Priestess
+[[patches]]
+[patches.pattern]
+target = "card.lua"
+pattern = "if self.ability.name == 'The Emperor' or self.ability.name == 'The High Priestess' then"
+position = 'after'
+match_indent = true
+payload = '''
+PlayLog.temp.emppri_limit = math.min((self.ability.consumeable.tarots or self.ability.consumeable.planets), G.consumeables.config.card_limit - #G.consumeables.cards)
+'''
+
+[[patches]]
+[patches.pattern]
+target = "card.lua"
+pattern = "local card = create_card((self.ability.name == 'The Emperor' and 'Tarot') or (self.ability.name == 'The High Priestess' and 'Planet'), G.consumeables, nil, nil, nil, nil, nil, (self.ability.name == 'The Emperor' and 'emp') or (self.ability.name == 'The High Priestess' and 'pri'))"
+position = 'after'
+match_indent = true
+payload = '''
+if i == PlayLog.temp.emppri_limit then
+    PlayLog.temp.emppri_cards = PlayLog.temp.emppri_cards or {}
+    table.insert(PlayLog.temp.emppri_cards, card)
+    PlayLog.log{ type = "creates", card = self, created = PlayLog.temp.emppri_cards }
+    PlayLog.temp.emppri_cards = nil
+    PlayLog.temp.emppri_limit = nil
+else
+    PlayLog.temp.emppri_cards = PlayLog.temp.emppri_cards or {}
+    table.insert(PlayLog.temp.emppri_cards, card)
+end
+'''
+
+# The Hermit
+[[patches]]
+[patches.pattern]
+target = "card.lua"
+pattern = "ease_dollars(math.max(0,math.min(G.GAME.dollars, self.ability.extra)), true)"
+position = 'before'
+match_indent = true
+payload = '''
+PlayLog.log{ type = "money", card = self, amount = math.max(0,math.min(G.GAME.dollars, self.ability.extra)) }
+'''
+
+# The Wheel of Fortune, Ectoplasm, Hex
+[[patches]]
+[patches.pattern]
+target = "card.lua"
+pattern = "eligible_card:set_edition(edition, true)"
+position = 'before'
+match_indent = true
+payload = '''
+PlayLog.log{ type = "applied", card = self, applied = { elegible_card }, edition = edition }
+'''
+
+[[patches]]
+[patches.pattern]
+target = "card.lua"
+pattern = '''
+G.E_MANAGER:add_event(Event({trigger = 'after', delay = 0.4, func = function()
+    attention_text({
+        text = localize('k_nope_ex'),
+'''
+position = 'before'
+match_indent = true
+payload = '''
+PlayLog.log{ type = "noped", card = self }
+'''
+
+# Strength
+# TODO: Figure out how to pass the actual cards
+[[patches]]
+[patches.pattern]
+target = '=[SMODS _ "src/game_object.lua"]'
+pattern = '''
+assert(SMODS.modify_rank(G.hand.highlighted[i], 1))
+'''
+position = 'at'
+match_indent = true
+payload = '''
+local playlog_card = G.hand.highlighted[i]
+PlayLog.temp.strength_cards = PlayLog.temp.strength_cards or {}
+table.insert(PlayLog.temp.strength_cards, PlayLog.localize_rank_of_suit(playlog_card.base.value, playlog_card.base.suit))
+
+assert(SMODS.modify_rank(G.hand.highlighted[i], 1))
+
+PlayLog.temp.strength_ranks = PlayLog.temp.strength_ranks or {}
+table.insert(PlayLog.temp.strength_ranks, playlog_card.base.value)
+if i == #G.hand.highlighted then
+    PlayLog.log { type = "converts_multiple", card = self, converted = PlayLog.temp.strength_cards, ranks = PlayLog.temp.strength_ranks }
+    PlayLog.temp.strength_cards = nil
+    PlayLog.temp.strength_ranks = nil
+end
+'''
+
+# Hanged Man
+[[patches]]
+[patches.pattern]
+target = "card.lua"
+pattern = '''
+for i=#G.hand.highlighted, 1, -1 do
+    destroyed_cards[#destroyed_cards+1] = G.hand.highlighted[i]
+end
+'''
+position = 'after'
+match_indent = true
+payload = '''
+PlayLog.log{ type = "destroys", card = self, destroyed = destroyed_cards }
+'''
+
+# Death
+[[patches]]
+[patches.pattern]
+target = "card.lua"
+pattern = '''
+for i=1, #G.hand.highlighted do if G.hand.highlighted[i].T.x > rightmost.T.x then rightmost = G.hand.highlighted[i] end end
+'''
+position = 'after'
+match_indent = true
+payload = '''
+local playlog_copied_to = {}
+for i=1, #G.hand.highlighted do if G.hand.highlighted[i] ~= rightmost then table.insert(playlog_copied_to, G.hand.highlighted[i]) end end
+PlayLog.log{ type = "copies", card = self, copied = { rightmost }, copied_to = { playlog_copied_to } }
+'''
+
+# Temperance
+[[patches]]
+[patches.pattern]
+target = "card.lua"
+pattern = "ease_dollars(self.ability.money, true)"
+position = 'before'
+match_indent = true
+payload = '''
+PlayLog.log{ type = "money", card = self, amount = self.ability.money }
+'''
+
+# The Star, The Moon, The Sun, The World
+[[patches]]
+[patches.pattern]
+target = "card.lua"
+pattern = '''
+for i=1, #G.hand.highlighted do
+    G.E_MANAGER:add_event(Event({trigger = 'after',delay = 0.1,func = function() G.hand.highlighted[i]:change_suit(self.ability.consumeable.suit_conv);return true end }))
+end
+'''
+position = 'after'
+match_indent = true
+payload = '''
+PlayLog.log { type = "converts", card = self, converted = G.hand.highlighted, suit = self.ability.consumeable.suit_conv }
+'''
+
+# Judgement, The Soul
+[[patches]]
+[patches.pattern]
+target = "card.lua"
+pattern = '''
+local card = create_card('Joker', G.jokers, self.ability.name == 'The Soul', nil, nil, nil, nil, self.ability.name == 'Judgement' and 'jud' or 'sou')
+'''
+position = 'after'
+match_indent = true
+payload = '''
+PlayLog.log { type = "creates", card = self, created = { card } }
+'''
