@@ -614,7 +614,7 @@ function pl_enqueue_rich_log(raw_body)
         message_text = raw_body.text or raw_body.message or raw_body.raw_text or ""
         loc_vars = raw_body.loc_vars or raw_body.vars
     end
-    local raw_text = "{C:inactive}" .. time_text .. " " .. tostring(message_text or "")
+    local raw_text = "{C:inactive}" .. time_text .. "{} " .. tostring(message_text or "")
     local segments = PlayLog.parse_text(raw_text, loc_vars)
     local plain_line = pl_plain_from_segments(segments)
     G.playlog_plain_entries[#G.playlog_plain_entries + 1] = plain_line
