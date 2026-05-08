@@ -49,3 +49,4 @@ luac.out
 assets/templates/*
 debug.lua
 .luarc.json
+playlog_runs/*

@@ -28,7 +28,7 @@ end
 position = 'after'
 match_indent = true
 payload = '''
-PlayLog.log { type = "converts", card = self, converted = G.hand.highlighted, enhancement = self.ability.consumeable.mod_conv }
+PlayLog.log{ type = "converts", card = self, converted = G.hand.highlighted, enhancement = self.ability.consumeable.mod_conv }
 '''
 
 # The Emperor and The High Priestess
@@ -80,7 +80,25 @@ pattern = "eligible_card:set_edition(edition, true)"
 position = 'before'
 match_indent = true
 payload = '''
-PlayLog.log{ type = "applied", card = self, applied = { eligible_card }, edition = edition }
+local playlog_jokers
+if self.config.center_key == "c_hex" then
+    playlog_jokers = {}
+    for _, joker in pairs(G.jokers.cards) do
+        if joker ~= eligible_card and (not SMODS.is_eternal(joker, self)) then
+            playlog_jokers[#playlog_jokers+1] = joker
+        end
+    end
+end
+G.E_MANAGER:add_event(Event({
+    func = function()
+        PlayLog.log{ type = "applied", card = self, applied = { eligible_card }, edition = type(edition) == "table" and (edition.negative and "e_negative" or edition.polychrome and "e_polychrome") or edition }
+        if self.config.center_key == "c_ectoplasm" then PlayLog.log{ type = "change_area_size", card = self, area = G.hand, amount = -(G.GAME.ecto_minus or 1) } end
+        if self.config.center_key == "c_hex" and #playlog_jokers > 0 then
+            PlayLog.log{ type = "destroys", card = self, destroyed = playlog_jokers }
+        end
+        return true
+    end
+}))
 '''
 
 [[patches]]
@@ -94,7 +112,12 @@ G.E_MANAGER:add_event(Event({trigger = 'after', delay = 0.4, func = function()
 position = 'before'
 match_indent = true
 payload = '''
-PlayLog.log{ type = "noped", card = self }
+G.E_MANAGER:add_event(Event({
+    func = function()
+        PlayLog.log{ type = "noped", card = self }
+        return true
+    end
+}))
 '''
 
 # Strength
@@ -117,7 +140,7 @@ assert(SMODS.modify_rank(G.hand.highlighted[i], 1))
 PlayLog.temp.strength_ranks = PlayLog.temp.strength_ranks or {}
 table.insert(PlayLog.temp.strength_ranks, playlog_card.base.value)
 if i == #G.hand.highlighted then
-    PlayLog.log { type = "converts_multiple", card = card, converted = PlayLog.temp.strength_cards, ranks = PlayLog.temp.strength_ranks }
+    PlayLog.log{ type = "converts_multiple", card = card, converted = PlayLog.temp.strength_cards, ranks = PlayLog.temp.strength_ranks }
     PlayLog.temp.strength_cards = nil
     PlayLog.temp.strength_ranks = nil
 end
@@ -176,7 +199,7 @@ end
 position = 'after'
 match_indent = true
 payload = '''
-PlayLog.log { type = "converts", card = self, converted = G.hand.highlighted, suit = self.ability.consumeable.suit_conv }
+PlayLog.log{ type = "converts", card = self, converted = G.hand.highlighted, suit = self.ability.consumeable.suit_conv }
 '''
 
 # Judgement, The Soul
@@ -189,5 +212,164 @@ local card = create_card('Joker', G.jokers, self.ability.name == 'The Soul', nil
 position = 'after'
 match_indent = true
 payload = '''
-PlayLog.log { type = "creates", card = self, created = { card } }
+PlayLog.log{ type = "creates", card = self, created = { card } }
+'''
+
+## Spectrals
+
+# Familiar, Grim, Incantation
+[[patches]]
+[patches.pattern]
+target = '=[SMODS _ "src/game_object.lua"]'
+pattern = '''
+destroyed_cards[#destroyed_cards + 1] = pseudorandom_element(G.hand.cards, pseudoseed('random_destroy'))
+'''
+position = 'after'
+match_indent = true
+payload = '''
+PlayLog.log{ type = "destroys", card = used_tarot, destroyed = destroyed_cards }
+'''
+
+[[patches]]
+[patches.pattern]
+target = '=[SMODS _ "src/game_object.lua"]'
+pattern = '''
+playing_card_joker_effects(cards)
+'''
+position = 'after'
+match_indent = true
+payload = '''
+PlayLog.log{ type = "creates", card = card, created = cards }
+'''
+
+# Talisman, Deja Vu, Trance, Medium
+[[patches]]
+[patches.pattern]
+target = "card.lua"
+pattern = '''
+conv_card:set_seal(self.ability.extra, nil, true)
+'''
+position = 'after'
+match_indent = true
+payload = '''
+PlayLog.log{ type = "applied", card = self, applied = { conv_card }, seal = self.ability.extra }
+'''
+
+# Aura
+[[patches]]
+[patches.pattern]
+target = "card.lua"
+pattern = '''
+aura_card:set_edition(edition, true)
+'''
+position = 'after'
+match_indent = true
+payload = '''
+PlayLog.log{ type = "applied", card = self, applied = { aura_card }, edition = edition }
+'''
+
+# Wraith
+[[patches]]
+[patches.pattern]
+target = "card.lua"
+pattern = '''
+local card = create_card('Joker', G.jokers, nil, 0.99, nil, nil, nil, 'wra')
+'''
+position = 'after'
+match_indent = true
+payload = '''
+PlayLog.log{ type = "creates", card = self, created = { card } }
+PlayLog.log{ type = "money", card = self, amount = -G.GAME.dollars }
+'''
+
+# Sigil
+[[patches]]
+[patches.pattern]
+target = '=[SMODS _ "src/game_object.lua"]'
+pattern = '''
+local _suit = pseudorandom_element(SMODS.Suits, pseudoseed('sigil'))
+'''
+position = 'after'
+match_indent = true
+payload = '''
+PlayLog.log{ type = "converts", card = card, converted = G.hand.cards, suit = _suit.key }
+'''
+
+# Ouija
+[[patches]]
+[patches.pattern]
+target = '=[SMODS _ "src/game_object.lua"]'
+pattern = '''
+local _rank = pseudorandom_element(SMODS.Ranks, pseudoseed('ouija'))
+'''
+position = 'after'
+match_indent = true
+payload = '''
+PlayLog.log{ type = "converts", card = card, converted = G.hand.cards, rank = _rank.key }
+PlayLog.log{ type = "change_area_size", card = card, area = G.hand, amount = -1 }
+'''
+
+# Immolate
+[[patches]]
+[patches.pattern]
+target = "card.lua"
+pattern = '''
+for i = 1, self.ability.extra.destroy do destroyed_cards[#destroyed_cards+1] = temp_hand[i] end
+'''
+position = 'after'
+match_indent = true
+payload = '''
+if #destroyed_cards > 0 then
+    PlayLog.log{ type = "destroys", card = self, destroyed = destroyed_cards }
+end
+PlayLog.log{ type = "money", card = self, amount = self.ability.extra.dollars }
+'''
+
+# Ankh
+[[patches]]
+[patches.pattern]
+target = "card.lua"
+pattern = '''
+local chosen_joker = pseudorandom_element(G.jokers.cards, pseudoseed('ankh_choice'))
+'''
+position = 'after'
+match_indent = true
+payload = '''
+local playlog_jokers = {}
+for _, joker in pairs(deletable_jokers) do
+    if joker ~= chosen_joker then
+        playlog_jokers[#playlog_jokers+1] = joker
+    end
+end
+PlayLog.log{ type = "copies", card = self, copied = { chosen_joker } }
+if #playlog_jokers > 0 then
+    PlayLog.log{ type = "destroys", card = self, destroyed = playlog_jokers }
+end
+'''
+
+# Cryptid
+[[patches]]
+[patches.pattern]
+target = "card.lua"
+pattern = '''
+if self.ability.name == 'Cryptid' then
+'''
+position = 'after'
+match_indent = true
+payload = '''
+PlayLog.log{ type = "copies", card = self, copied = { G.hand.highlighted[1] } }
+PlayLog.log{ type = "copies", card = self, copied = { G.hand.highlighted[1] } }
+'''
+
+# Black Hole
+[[patches]]
+[patches.pattern]
+target = "card.lua"
+pattern = '''
+if self.ability.name == 'Black Hole' then
+'''
+position = 'after'
+match_indent = true
+payload = '''
+PlayLog.log{ type = "leveled_up", hands = G.handlist, card = self }
 '''

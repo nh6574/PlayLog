@@ -15,9 +15,7 @@ PlayLog.LogType = SMODS.GameObject:extend {
     get_message = function(self, args)
         return "ERROR"
     end,
-    inject = function(self, i)
-
-    end
+    inject = function(self, i) end
 }
 
 PlayLog.LogType {
@@ -30,7 +28,12 @@ PlayLog.LogType {
 --TODO: Handle card information properly instead of this
 local function format_card(card)
     if not card then return "ERROR" end
-    if type(card) == "string" then return card end
+    if type(card) == "string" then
+        if G.P_CENTERS[card] or G.P_SEALS[card] or G.P_BLINDS[card] or G.P_TAGS[card] then
+            return format_center_from_key(card)
+        end
+        return card
+    end
     if card.playing_card then -- TODO: other than figuring how to pass the values/modifiers to the UI, how are no rank/suit cards displayed?
         return PlayLog.localize_rank_of_suit(card.base.value, card.base.suit)
     end
@@ -49,11 +52,15 @@ local function format_card_list(list)
 end
 
 local function format_center_from_key(center_key)
-    local center = G.P_CENTERS[center_key]
+    local center = G.P_CENTERS[center_key] or G.P_SEALS[card] or G.P_BLINDS[card] or G.P_TAGS[card]
+    local set = center.set or (G.P_SEALS[card] and "Seal") or (G.P_BLINDS[card] and "Blind") or
+        (G.P_TAGS[card] and "Tag")
     if not center then return "ERROR" end
     return "{T:" ..
         center_key ..
-        "}" .. localize { type = "name_text", key = center_key, set = center.set } .. "{}"
+        "}" ..
+        localize { type = "name_text", key = set == "Seal" and center_key:lower() .. "_seal" or center_key, set = set } ..
+        "{}"
 end
 
 PlayLog.LogType {
@@ -87,9 +94,12 @@ PlayLog.LogType {
     key = "added",
     get_message = function(self, args)
         if args.area then
-            return PlayLog.localize("added_to", { format_card(args.card), PlayLog.get_area_name(args.area) })
+            return PlayLog.localize("added_to",
+                { args.cards and PlayLog.loc_list(format_card_list(args.cards)) or format_card(args.card), PlayLog
+                    .get_area_name(args.area) })
         end
-        return PlayLog.localize("added", { format_card(args.card) })
+        return PlayLog.localize("added",
+            { args.cards and PlayLog.loc_list(format_card_list(args.cards)) or format_card(args.card) })
     end
 }
 
@@ -139,7 +149,7 @@ PlayLog.LogType {
         if args.edition then
             conversion = format_center_from_key(args.edition)
         elseif args.seal then
-            conversion = localize { type = 'name_text', key = args.seal:lower() .. "_seal", set = "Seal" }
+            conversion = localize(args.seal:lower() .. "_seal", "labels")
         elseif args.sticker then
             conversion = localize(args.sticker, "labels")
         end
@@ -152,6 +162,9 @@ PlayLog.LogType {
 PlayLog.LogType {
     key = "money",
     get_message = function(self, args)
+        if args.amount < 0 then
+            return PlayLog.localize("money_taken", { format_card(args.card), math.abs(args.amount) })
+        end
         return PlayLog.localize("money", { format_card(args.card), args.amount })
     end
 }
@@ -164,8 +177,45 @@ PlayLog.LogType {
 }
 
 PlayLog.LogType {
-    key = "noped",
+    key = "hand_level_up",
     get_message = function(self, args)
-        return PlayLog.localize("noped", { format_card(args.card) })
+        return PlayLog.localize("hand_level_up", { localize(args.hand, 'poker_hands'), args.old_level, args.new_level })
+    end
+}
+
+PlayLog.LogType {
+    key = "leveled_up",
+    get_message = function(self, args)
+        local hand_list = {}
+        if #G.handlist == #args.hands then
+            hand_list[#hand_list + 1] = PlayLog.localize("all_hands")
+        else
+            for _, hand in ipairs(args.hands) do
+                hand_list[#hand_list + 1] = "{C:attention}" .. localize(hand, 'poker_hands') .. "{}"
+            end
+        end
+        return PlayLog.localize("leveled_up", { format_card(args.card), PlayLog.loc_list(hand_list) })
+    end
+}
+
+PlayLog.LogType {
+    key = "change_area_size",
+    get_message = function(self, args)
+        if args.amount < 0 then
+            return PlayLog.localize("change_area_size_neg",
+                { format_card(args.card), PlayLog.get_area_name(args.area), math.abs(args.amount) })
+        end
+        return PlayLog.localize("change_area_size",
+            { format_card(args.card), PlayLog.get_area_name(args.area), args.amount })
+    end
+}
+
+PlayLog.LogType {
+    key = "area_size",
+    get_message = function(self, args)
+        return PlayLog.localize("area_size",
+            { PlayLog.get_area_name(args.area),
+                args.old_size or args.area.config.card_limit - (args.amount or 0),
+                args.new_size or args.area.config.card_limit })
     end
 }

@@ -22,6 +22,9 @@ return {
             hand_area = "hand",
             deck_area = "deck",
 
+            -- Others
+            all_hands = "all hands",
+
             -- Logging
             creates = "{C:attention}#1#{} created {C:attention}#2#",
             destroys = "{C:attention}#1#{} destroyed {C:attention}#2#",
@@ -33,8 +36,14 @@ return {
             applied = "{C:attention}#1#{} has applied {C:attention}#3#{} to #2#",
             copies = "{C:attention}#1#{} copied {C:attention}#2#",
             copies_into = "{C:attention}#1#{} turned {C:attention}#3#{} into {C:attention}#2#{}",
-            money = "{C:attention}#1#{} gave {C:money}+$#2#{}",
+            money = "{C:attention}#1#{} gave {C:money}$#2#{}",
+            money_taken = "{C:attention}#1#{} took {C:money}$#2#{}",
             noped = "{C:attention}#1#{} noped!",
+            hand_level_up = "{C:attention}#1#{} leveled up lvl.{C:red}#2#{} -> {C:red}#3#",
+            leveled_up = "{C:attention}#1#{} leveled up #2#",
+            area_size = "{C:attention}#1#{} size changed: {C:red}#2#{} -> {C:red}#3#{}",
+            change_area_size = "{C:attention}#1#{} increased {C:attention}#2#{} size by {C:green}#3#",
+            change_area_size_neg = "{C:attention}#1#{} reduced {C:attention}#2#{} size by {C:green}#3#",
         }
     }
 }
