@@ -301,6 +301,7 @@ local function pl_draw_hover_tooltip(hovered)
         pl_tooltip_card.children.info = nil
     end
     if not pl_tooltip_card.children.playlog_box then
+        local display_card
         local name = {}
         local description = {}
         local target = {
@@ -314,6 +315,11 @@ local function pl_draw_hover_tooltip(hovered)
         local full_UI_table = { main = description, info = {}, type = {}, name = nil, badges = nil }
         PlayLog.no_info_queue = true
         local vars, main_start, main_end = pl_tooltip_card:generate_UIBox_ability_table(true)
+        if is_tag then
+            local tag = Tag(hovered.key)
+            _, display_card = tag:generate_UI()
+            vars = tag:get_uibox_table(nil, true)
+        end
         generate_card_ui(center, full_UI_table, vars,
             center.set or (is_seal and 'Seal'), {}, nil, main_start, main_end,
             center.create_fake_card and center:create_fake_card() or pl_tooltip_card)
@@ -339,8 +345,7 @@ local function pl_draw_hover_tooltip(hovered)
                 localize { type = 'name', set = res.name_set or target.set, key = res.name_key or target.key, nodes = name, vars = res.name_vars or target.vars or {} }
             end
         end
-        local display_card
-        if not is_tag then
+        if not display_card then
             display_card = Card(0, 0, G.CARD_W / 1.2, G.CARD_H / 1.2, nil, card_center)
             display_card.no_ui = true
             display_card.no_shadow = true
@@ -352,8 +357,6 @@ local function pl_draw_hover_tooltip(hovered)
                     pcall(function() display_card:set_seal(seal_key, true, true) end)
                 end
             end
-        else
-            _, display_card = Tag(hovered.key):generate_UI()
         end
 
         local card_nodes = {
