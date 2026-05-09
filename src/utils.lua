@@ -274,10 +274,10 @@ function PlayLog.get_area_name(area)
         [G.consumeables] = "consumable_area",
         [G.hand] = "hand_area",
         [G.deck] = "deck_area",
-        [G.shop_jokers] = "shop_jokers_area",
-        [G.shop_vouchers] = "shop_vouchers_area",
-        [G.shop_booster] = "shop_boosters_area",
     }
+    if G.shop_jokers then area_names[G.shop_jokers] = "shop_jokers_area" end
+    if G.shop_vouchers then area_names[G.shop_vouchers] = "shop_vouchers_area" end
+    if G.shop_booster then area_names[G.shop_booster] = "shop_boosters_area" end
     return area_names[area] and PlayLog.localize(area_names[area]) or nil
 end
 

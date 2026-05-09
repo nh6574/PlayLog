@@ -121,7 +121,6 @@ G.E_MANAGER:add_event(Event({
 '''
 
 # Strength
-# TODO: Figure out how to pass the actual cards
 [[patches]]
 [patches.pattern]
 target = '=[SMODS _ "src/game_object.lua"]'
