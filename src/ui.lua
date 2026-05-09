@@ -223,7 +223,7 @@ local function pl_draw_hover_tooltip(hovered)
 
     local anchor_x = (hovered.x + hovered.w * 0.5) * sx
     local anchor_y = (hovered.y + hovered.h) * sy
-    local tooltip_gap = math.max(10 * sy, (hovered.h or 0) * sy * 0.7)
+    local tooltip_gap = math.max(5 * sy, (hovered.h or 0) * sy * 0.35)
 
     local function pl_get_tooltip_size()
         local tooltip_w = card_w
