@@ -423,3 +423,41 @@ PlayLog.LogType {
         return PlayLog.localize("reroll_boss", { format_card(args.old_boss), format_card(args.new_boss) })
     end
 }
+
+PlayLog.LogType {
+    key = "hand_played",
+    get_message = function(self, args)
+        return PlayLog.localize("hand_played",
+            { localize(args.poker_hand, "poker_hands"), PlayLog.loc_list(format_card_list(args.cards, "attention")) })
+    end
+}
+
+PlayLog.LogType {
+    key = "hand_played_as",
+    get_message = function(self, args)
+        return PlayLog.localize("hand_played_as", { localize(args.poker_hand, "poker_hands") })
+    end
+}
+
+PlayLog.LogType {
+    key = "hand_scored",
+    get_message = function(self, args)
+        return PlayLog.localize("hand_scored", { args.amount, args.score })
+    end
+}
+
+PlayLog.LogType {
+    key = "discarded",
+    get_message = function(self, args)
+        return PlayLog.localize("discarded",
+            { PlayLog.loc_list(format_card_list(args.cards, "attention")) })
+    end
+}
+
+PlayLog.LogType {
+    key = "hand_drawn",
+    get_message = function(self, args)
+        return PlayLog.localize("hand_drawn",
+            { PlayLog.loc_list(format_card_list(args.cards, "attention")) })
+    end
+}

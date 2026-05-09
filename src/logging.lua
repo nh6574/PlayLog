@@ -14,36 +14,42 @@ SMODS.current_mod.calculate = function(self, context)
     end
 
     if context.tag_added then
+        local tag = context.tag_added.key
         G.E_MANAGER:add_event(Event({
             func = function()
-                PlayLog.log { type = "added", card = context.tag_added.key }
+                PlayLog.log { type = "added", card = tag }
                 return true
             end
         }))
     end
 
     if context.tag_triggered then
+        local tag = context.tag_triggered.key
         G.E_MANAGER:add_event(Event({
             func = function()
-                PlayLog.log { type = "tag_applied", tag = context.tag_triggered.key }
+                PlayLog.log { type = "tag_applied", tag = tag }
                 return true
             end
         }))
     end
 
     if context.poker_hand_changed then
+        local scoring_name = context.scoring_name
+        local old_level, new_level = context.old_level, context.new_level
+        local card = context.card
         G.E_MANAGER:add_event(Event({
             func = function()
-                PlayLog.log { type = "hand_level_up", hand = context.scoring_name, old_level = context.old_level, new_level = context.new_level, card = context.card }
+                PlayLog.log { type = "hand_level_up", hand = scoring_name, old_level = old_level, new_level = new_level, card = card }
                 return true
             end
         }))
     end
 
     if context.playing_card_added then
+        local cards = context.cards
         G.E_MANAGER:add_event(Event({
             func = function()
-                PlayLog.log { type = "added", cards = context.cards, area = (context.cards[1] or {}).area }
+                PlayLog.log { type = "added", cards = cards, area = (cards[1] or {}).area }
                 return true
             end
         }))
@@ -54,9 +60,10 @@ SMODS.current_mod.calculate = function(self, context)
     end
 
     if context.reroll_shop then
+        local cost = context.cost
         G.E_MANAGER:add_event(Event({
             func = function()
-                PlayLog.log { type = "reroll_shop", amount = context.cost, cards = G.shop_jokers.cards }
+                PlayLog.log { type = "reroll_shop", amount = cost, cards = G.shop_jokers.cards }
                 return true
             end
         }))
@@ -80,9 +87,10 @@ SMODS.current_mod.calculate = function(self, context)
     end
 
     if context.open_booster then
+        local card = context.card
         G.E_MANAGER:add_event(Event({
             func = function()
-                PlayLog.log { type = "booster_opened", booster = context.card, cards = G.pack_cards.cards }
+                PlayLog.log { type = "booster_opened", booster = card, cards = G.pack_cards.cards }
                 return true
             end
         }))
@@ -111,9 +119,60 @@ SMODS.current_mod.calculate = function(self, context)
     end
 
     if context.ante_change then
+        local ante_change = context.ante_change
+        local ante_end = context.ante_end
         G.E_MANAGER:add_event(Event({
             func = function()
-                PlayLog.log { type = "start_ante", ante = G.GAME.round_resets.ante + context.ante_change, modified = not context.ante_end and context.ante_change }
+                PlayLog.log { type = "start_ante", ante = G.GAME.round_resets.ante + ante_change, modified = not ante_end and ante_change }
+                return true
+            end
+        }))
+    end
+
+    if context.pre_discard then
+        local cards = context.full_hand
+        G.E_MANAGER:add_event(Event({
+            func = function()
+                PlayLog.log { type = "discarded", cards = cards }
+                return true
+            end
+        }))
+    end
+
+    if context.hand_drawn then
+        local cards = context.hand_drawn
+        G.E_MANAGER:add_event(Event({
+            func = function()
+                PlayLog.log { type = "hand_drawn", cards = cards }
+                return true
+            end
+        }))
+    end
+
+    if context.press_play then
+        local text, _ = G.FUNCS.get_poker_hand_info(G.hand.highlighted)
+        PlayLog.played_hand = text
+        PlayLog.log { type = "hand_played", cards = G.hand.highlighted, poker_hand = text }
+    end
+
+    if context.before then
+        local scoring_name = context.scoring_name
+        G.E_MANAGER:add_event(Event({
+            func = function()
+                if PlayLog.played_hand and scoring_name ~= PlayLog.played_hand then
+                    PlayLog.log { type = "hand_played_as", poker_hand = scoring_name }
+                end
+                PlayLog.played_hand = nil
+                return true
+            end
+        }))
+    end
+
+    if context.after then
+        local amount = SMODS.calculate_round_score()
+        G.E_MANAGER:add_event(Event({
+            func = function()
+                PlayLog.log { type = "hand_scored", amount = amount, score = G.GAME.chips }
                 return true
             end
         }))

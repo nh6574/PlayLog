@@ -72,7 +72,12 @@ return {
             lost = "Lost game!",
             lost_endless = "Lost Endless Mode!",
             tag_applied = "{C:attention}#1#{} applied",
-            reroll_boss = "Rerolled boss {C:attention}#1#{} -> {C:attention}#2#{}"
+            reroll_boss = "Rerolled boss {C:attention}#1#{} -> {C:attention}#2#{}",
+            hand_played = "Played {C:attention}#1#{}\nHand contains: #2#",
+            hand_played_as = "Hand evaluated as {C:attention}#1#{}",
+            hand_scored = "Hand scored: {C:attention}#1#{} | Current score: {C:attention}#2#{}",
+            discarded = "Discarded #1#",
+            hand_drawn = "Drawn #1#"
         }
     }
 }
