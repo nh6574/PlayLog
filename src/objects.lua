@@ -17,6 +17,8 @@ PlayLog.LogType = SMODS.GameObject:extend {
     end,
     inject = function(self, i) end
 }
+-- TODO: Add 'group' to group log types for the config
+-- TODO: Add localization for the types/groups for the config
 
 PlayLog.LogType {
     key = "message",
@@ -412,5 +414,12 @@ PlayLog.LogType {
     key = "tag_applied",
     get_message = function(self, args)
         return PlayLog.localize("tag_applied", { format_card(args.tag) })
+    end
+}
+
+PlayLog.LogType {
+    key = "reroll_boss",
+    get_message = function(self, args)
+        return PlayLog.localize("reroll_boss", { format_card(args.old_boss), format_card(args.new_boss) })
     end
 }

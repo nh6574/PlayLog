@@ -111,7 +111,12 @@ SMODS.current_mod.calculate = function(self, context)
     end
 
     if context.ante_change then
-        PlayLog.log { type = "start_ante", ante = G.GAME.round_resets.ante + context.ante_change, modified = not context.ante_end and context.ante_change }
+        G.E_MANAGER:add_event(Event({
+            func = function()
+                PlayLog.log { type = "start_ante", ante = G.GAME.round_resets.ante + context.ante_change, modified = not context.ante_end and context.ante_change }
+                return true
+            end
+        }))
     end
 end
 
@@ -215,4 +220,16 @@ function Game:start_run(args, ...)
         PlayLog.log { type = "resume" }
     end
     return ret
+end
+
+local g_funcs_reroll_boss = G.FUNCS.reroll_boss
+G.FUNCS.reroll_boss = function(e)
+    local old_boss = G.GAME.round_resets.blind_choices.Boss
+    g_funcs_reroll_boss(e)
+    G.E_MANAGER:add_event(Event({
+        func = function()
+            PlayLog.log { type = "reroll_boss", old_boss = old_boss, new_boss = G.GAME.round_resets.blind_choices.Boss }
+            return true
+        end
+    }))
 end

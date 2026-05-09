@@ -71,7 +71,8 @@ return {
             win = "Won game!",
             lost = "Lost game!",
             lost_endless = "Lost Endless Mode!",
-            tag_applied = "{C:attention}#1#{} applied"
+            tag_applied = "{C:attention}#1#{} applied",
+            reroll_boss = "Rerolled boss {C:attention}#1#{} -> {C:attention}#2#{}"
         }
     }
 }
