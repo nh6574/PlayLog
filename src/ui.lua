@@ -225,16 +225,34 @@ local function pl_draw_hover_tooltip(hovered)
     local anchor_y = (hovered.y + hovered.h) * sy
     local tooltip_gap = math.max(10 * sy, (hovered.h or 0) * sy * 0.7)
 
-    local x = anchor_x - card_w * 0.5
-    local y = anchor_y + tooltip_gap
-
-    if x < 0.08 then x = 0.08 end
-    if x + card_w > room_w - 0.08 then x = room_w - card_w - 0.08 end
-
-    if y + card_h > room_h - 0.08 then
-        y = (hovered.y * sy) - card_h - tooltip_gap
+    local function pl_get_tooltip_size()
+        local tooltip_w = card_w
+        local tooltip_h = card_h
+        if pl_tooltip_card and pl_tooltip_card.children and pl_tooltip_card.children.playlog_box
+            and pl_tooltip_card.children.playlog_box.T then
+            local box_t = pl_tooltip_card.children.playlog_box.T
+            tooltip_w = math.max(tooltip_w, tonumber(box_t.w) or tooltip_w)
+            tooltip_h = math.max(tooltip_h, tonumber(box_t.h) or tooltip_h)
+        end
+        return tooltip_w, tooltip_h
     end
-    if y < 0.08 then y = 0.08 end
+
+    local function pl_get_tooltip_pos()
+        local tooltip_w, tooltip_h = pl_get_tooltip_size()
+        local x = anchor_x - tooltip_w * 0.5
+        local y = anchor_y + tooltip_gap
+
+        if x < 0.08 then x = 0.08 end
+        if x + tooltip_w > room_w - 0.08 then x = room_w - tooltip_w - 0.08 end
+
+        if y + tooltip_h > room_h - 0.08 then
+            y = (hovered.y * sy) - tooltip_h - tooltip_gap
+        end
+        if y < 0.08 then y = 0.08 end
+        return x, y
+    end
+
+    local x, y = pl_get_tooltip_pos()
 
     local card_center = (is_seal or center.set == 'Edition')
         and (G.P_CENTERS.j_joker or G.P_CENTERS.c_base)
@@ -254,6 +272,12 @@ local function pl_draw_hover_tooltip(hovered)
         pl_tooltip_card.ability = pl_tooltip_card.ability or {}
         pl_tooltip_card.ability.temporary = true
         pl_tooltip_card.ambient_tilt = 0
+    end
+
+    x, y = pl_get_tooltip_pos()
+    if pl_tooltip_card and pl_tooltip_card.T then
+        pl_tooltip_card.T.x = x + card_w * 0.5
+        pl_tooltip_card.T.y = y + card_h * 0.5
     end
     pl_tooltip_card.T.r = 0
 
