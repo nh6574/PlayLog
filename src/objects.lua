@@ -41,11 +41,11 @@ local function format_center_from_key(center_key)
             "}" .. localize((vars.name_key or vars.key or center_key):lower() .. "_seal", "labels")
     end
     if set == "Booster" then vars.set = "Other" end
-    return "{T:" ..
-        center_key ..
-        "}" ..
-        localize { type = "name_text", key = vars.name_key or vars.key or center_key, set = vars.name_set or vars.set or set } ..
-        "{}"
+    local name_text = localize { type = "name_text", key = vars.name_key or vars.key or center_key, set = vars.name_set or vars.set or set }
+    if vars.vars then
+        name_text = PlayLog.fill_vars(name_text, vars.vars)
+    end
+    return "{T:" .. center_key .. "}" .. name_text .. "{}"
 end
 
 --TODO: Handle card information properly instead of this
@@ -67,11 +67,11 @@ local function format_card(card)
         vars = center:loc_vars({}, center:create_fake_card()) or {}
     end
     if card.config.center.set == "Booster" then vars.set = "Other" end
-    return "{T:" ..
-        card.config.center.key ..
-        "}" ..
-        localize { type = "name_text", key = vars.name_key or vars.key or card.config.center.key, set = vars.name_set or vars.set or card.config.center.set } ..
-        "{}"
+    local name_text = localize { type = "name_text", key = vars.name_key or vars.key or card.config.center.key, set = vars.name_set or vars.set or card.config.center.set }
+    if vars.vars then
+        name_text = PlayLog.fill_vars(name_text, vars.vars)
+    end
+    return "{T:" .. card.config.center.key .. "}" .. name_text .. "{}"
 end
 
 local function format_card_list(list)

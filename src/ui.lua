@@ -107,7 +107,8 @@ local function pl_draw_rich_segments(segments, x, y, max_x, mouse_x, mouse_y, li
             love.graphics.setColor(c[1] or 1, c[2] or 1, c[3] or 1, c[4] or 1)
             love.graphics.print(token, draw_x, draw_y, nil, draw_scale, draw_scale)
             if seg_underline then
-                love.graphics.setColor(seg_underline[1] or 1, seg_underline[2] or 1, seg_underline[3] or 1, seg_underline[4] or 1)
+                love.graphics.setColor(seg_underline[1] or 1, seg_underline[2] or 1, seg_underline[3] or 1,
+                    seg_underline[4] or 1)
                 love.graphics.rectangle("fill", draw_x, draw_y + seg_h - 2, token_w, 1)
             end
             if seg_strike then
@@ -274,29 +275,19 @@ local function pl_draw_hover_tooltip(hovered)
         }
         local res = {}
         local full_UI_table = { main = description, info = {}, type = {}, name = nil, badges = nil }
-        if is_seal or center.consumeable or center.set == 'Edition' or center.set == 'Enhanced' then
-            PlayLog.no_info_queue = true
-            generate_card_ui(center, full_UI_table, nil,
-                center.set or (is_seal and 'Seal'), {})
-            PlayLog.no_info_queue = nil
-        elseif center.loc_vars and type(center.loc_vars) == 'function' then
-            res = center:loc_vars({}, card) or {}
-            target.vars = res.vars or target.vars
-            target.key = res.key or target.key
-            target.set = res.set or target.set
-            target.scale = res.scale
-            target.text_colour = res.text_colour
-        else
-            local vars, main_start, main_end = pl_tooltip_card:generate_UIBox_ability_table(true)
-            target.vars = vars or target.vars
-            res.main_start = main_start
-            res.main_end = main_end
+        PlayLog.no_info_queue = true
+        local vars, main_start, main_end = pl_tooltip_card:generate_UIBox_ability_table(true)
+        generate_card_ui(center, full_UI_table, vars,
+            center.set or (is_seal and 'Seal'), {}, nil, main_start, main_end,
+            center.create_fake_card and center:create_fake_card() or pl_tooltip_card)
+        PlayLog.no_info_queue = nil
+
+        if center.set == "Back" then
+            local temp_back = Back(center)
+            PlayLog.back_generate_ui = true
+            description = temp_back:generate_UI()
+            PlayLog.back_generate_ui = nil
         end
-        if res.main_start then description[#description + 1] = res.main_start end
-        if not (is_seal or center.consumeable or center.set == 'Edition' or center.set == 'Enhanced') then
-            localize(target)
-        end
-        if res.main_end then description[#description + 1] = res.main_end end
 
         if type(full_UI_table.name) == "string" then full_UI_table.name = nil end
 
@@ -324,6 +315,42 @@ local function pl_draw_hover_tooltip(hovered)
             end
         end
 
+        local card_nodes = {
+            full_UI_table.name and {
+                n = G.UIT.R,
+                config = { align = "cm", padding = 0.07, r = 0.1, colour = G.C.CLEAR },
+                nodes = full_UI_table.name
+            } or desc_from_rows(name, true),
+            desc_from_rows(description)
+        }
+
+        if full_UI_table.joy_consumable then -- supporting my own mod :3
+            table.insert(card_nodes, 2, desc_from_rows(full_UI_table.joy_consumable))
+        end
+
+        if full_UI_table.multi_box then
+            for i, box in ipairs(full_UI_table.multi_box) do
+                box.background_colour = box.background_colour or
+                    full_UI_table.box_colours and full_UI_table.box_colours[i + 1] or nil
+                if full_UI_table.box_starts and full_UI_table.box_starts[i] then
+                    table.insert(box, 1, full_UI_table.box_starts[i])
+                end
+                if full_UI_table.box_ends and full_UI_table.box_ends[i] then table.insert(box, full_UI_table.box_ends[i]) end
+                table.insert(card_nodes, desc_from_rows(box))
+            end
+        end
+
+        local badges = {}
+        SMODS.create_mod_badges(center, badges)
+        if badges[1] then
+            table.insert(card_nodes, {
+                n = G.UIT.R,
+                config = { align = "cm", padding = 0.03 },
+                nodes = badges
+            })
+        end
+        badges.mod_set = nil
+
         pl_tooltip_card.children.playlog_box = UIBox {
             definition = {
                 n = G.UIT.ROOT,
@@ -350,14 +377,7 @@ local function pl_draw_hover_tooltip(hovered)
                                             {
                                                 n = G.UIT.R,
                                                 config = { align = "cm", padding = 0.07, r = 0.1, colour = G.C.CLEAR },
-                                                nodes = {
-                                                    full_UI_table.name and {
-                                                        n = G.UIT.R,
-                                                        config = { align = "cm", padding = 0.07, r = 0.1, colour = G.C.CLEAR },
-                                                        nodes = full_UI_table.name
-                                                    } or desc_from_rows(name, true),
-                                                    desc_from_rows(description)
-                                                }
+                                                nodes = card_nodes
                                             }
                                         }
                                     }
@@ -422,7 +442,7 @@ local function pl_get_layout()
     local slide = G.playlog_slide or 0
     local slide_offset = (1 - slide) * (panel_w + 20)
     local panel_x = math.floor(sw - panel_w - 18 + slide_offset) + (G.playlog_drag_dx or 0)
-    local panel_y = math.max(10, math.floor(sh * 0.22))             + (G.playlog_drag_dy or 0)
+    local panel_y = math.max(10, math.floor(sh * 0.22)) + (G.playlog_drag_dy or 0)
     panel_x = pl_clamp(panel_x, 0, sw - panel_w)
     panel_y = pl_clamp(panel_y, 0, sh - panel_h)
     local header_h = 28
@@ -819,16 +839,24 @@ local function pl_draw_panel(layout)
     local header_hov = pl_point_in_rect(mx0, my0, layout.panel_x, layout.panel_y, layout.panel_w, layout.header_h)
         and not pl_point_in_rect(mx0, my0, layout.cfg_btn_x, layout.cfg_btn_y, layout.cfg_btn_w, layout.cfg_btn_h)
         and not pl_point_in_rect(mx0, my0, layout.copy_btn_x, layout.copy_btn_y, layout.copy_btn_w, layout.copy_btn_h)
-    local resize_tl_hov = pl_point_in_rect(mx0, my0, layout.resize_tl_x, layout.resize_tl_y, layout.resize_corner, layout.resize_corner)
-    local resize_tr_hov = pl_point_in_rect(mx0, my0, layout.resize_tr_x, layout.resize_tr_y, layout.resize_corner, layout.resize_corner)
-    local resize_bl_hov = pl_point_in_rect(mx0, my0, layout.resize_bl_x, layout.resize_bl_y, layout.resize_corner, layout.resize_corner)
-    local resize_br_hov = pl_point_in_rect(mx0, my0, layout.resize_br_x, layout.resize_br_y, layout.resize_corner, layout.resize_corner)
-    local resize_l_hov = pl_point_in_rect(mx0, my0, layout.resize_l_x, layout.resize_l_y, layout.resize_l_w, layout.resize_l_h)
-    local resize_r_hov = pl_point_in_rect(mx0, my0, layout.resize_r_x, layout.resize_r_y, layout.resize_r_w, layout.resize_r_h)
-    local resize_t_hov = pl_point_in_rect(mx0, my0, layout.resize_t_x, layout.resize_t_y, layout.resize_t_w, layout.resize_t_h)
-    local resize_b_hov = pl_point_in_rect(mx0, my0, layout.resize_b_x, layout.resize_b_y, layout.resize_b_w, layout.resize_b_h)
+    local resize_tl_hov = pl_point_in_rect(mx0, my0, layout.resize_tl_x, layout.resize_tl_y, layout.resize_corner,
+        layout.resize_corner)
+    local resize_tr_hov = pl_point_in_rect(mx0, my0, layout.resize_tr_x, layout.resize_tr_y, layout.resize_corner,
+        layout.resize_corner)
+    local resize_bl_hov = pl_point_in_rect(mx0, my0, layout.resize_bl_x, layout.resize_bl_y, layout.resize_corner,
+        layout.resize_corner)
+    local resize_br_hov = pl_point_in_rect(mx0, my0, layout.resize_br_x, layout.resize_br_y, layout.resize_corner,
+        layout.resize_corner)
+    local resize_l_hov = pl_point_in_rect(mx0, my0, layout.resize_l_x, layout.resize_l_y, layout.resize_l_w,
+        layout.resize_l_h)
+    local resize_r_hov = pl_point_in_rect(mx0, my0, layout.resize_r_x, layout.resize_r_y, layout.resize_r_w,
+        layout.resize_r_h)
+    local resize_t_hov = pl_point_in_rect(mx0, my0, layout.resize_t_x, layout.resize_t_y, layout.resize_t_w,
+        layout.resize_t_h)
+    local resize_b_hov = pl_point_in_rect(mx0, my0, layout.resize_b_x, layout.resize_b_y, layout.resize_b_w,
+        layout.resize_b_h)
     love.graphics.setColor(pl_col('header_text', 0.95, 0.73, 0.25, header_hov and 0.6 or 0.25))
-    for _, dot in ipairs({{-8,0},{0,0},{8,0}}) do
+    for _, dot in ipairs({ { -8, 0 }, { 0, 0 }, { 8, 0 } }) do
         love.graphics.circle("fill", hdr_cx + dot[1], hdr_cy, 2)
     end
     if resize_tl_hov or resize_br_hov or G.playlog_resize_mode == 'tl' or G.playlog_resize_mode == 'br' then
@@ -846,7 +874,8 @@ local function pl_draw_panel(layout)
     end
     local cfg_open = G.playlog_config_open
     local cfg_hov = pl_point_in_rect(mx0, my0, layout.cfg_btn_x, layout.cfg_btn_y, layout.cfg_btn_w, layout.cfg_btn_h)
-    local copy_hov = pl_point_in_rect(mx0, my0, layout.copy_btn_x, layout.copy_btn_y, layout.copy_btn_w, layout.copy_btn_h)
+    local copy_hov = pl_point_in_rect(mx0, my0, layout.copy_btn_x, layout.copy_btn_y, layout.copy_btn_w,
+        layout.copy_btn_h)
     love.graphics.setColor(pl_col('border', 0.95, 0.73, 0.25, cfg_open and 0.9 or (cfg_hov and 0.7 or 0.35)))
     love.graphics.rectangle("fill", layout.cfg_btn_x, layout.cfg_btn_y, layout.cfg_btn_w, layout.cfg_btn_h, 4, 4)
     love.graphics.setColor(0, 0, 0, cfg_open and 0.8 or 0.6)
@@ -1047,8 +1076,10 @@ G.FUNCS.playlog_open_log = function(e)
     pl_enqueue_rich_log("{C:attention}{T:j_brainstorm}Brainstorm{} copying {T:j_blueprint}Blueprint{}")
     --Style tests
     pl_enqueue_rich_log("[STYLE] {C:attention,s:1.15}C + s in one block{}")
-    pl_enqueue_rich_log("[STYLE] scale ladder: {s:0.55}0.55{} {s:0.70}0.70{} {s:0.85}0.85{} {s:1.00}1.00{} {s:1.20}1.20{} {s:1.45}1.45{} {s:1.80}1.80{}")
-    pl_enqueue_rich_log("[STYLE] {s:0.60,C:inactive}tiny{} {s:1.00,C:white}normal{} {s:1.60,C:attention}LARGE{} {s:2.10,C:red}HUGE{}")
+    pl_enqueue_rich_log(
+        "[STYLE] scale ladder: {s:0.55}0.55{} {s:0.70}0.70{} {s:0.85}0.85{} {s:1.00}1.00{} {s:1.20}1.20{} {s:1.45}1.45{} {s:1.80}1.80{}")
+    pl_enqueue_rich_log(
+        "[STYLE] {s:0.60,C:inactive}tiny{} {s:1.00,C:white}normal{} {s:1.60,C:attention}LARGE{} {s:2.10,C:red}HUGE{}")
     pl_enqueue_rich_log("[STYLE] {C:green,u:green}underline{} + {C:red,st:red}strikethrough{}")
     pl_enqueue_rich_log("[STYLE] {X:mult,C:white} X 3 {} label with background")
     pl_enqueue_rich_log("[STYLE] chained: {C:tarot}{T:c_fool}C then T{} | combined: {C:tarot,T:c_fool}C+T{}")
@@ -1278,15 +1309,15 @@ function love.mousepressed(x, y, button, istouch, presses)
         if pl_point_in_rect(x, y, layout.button_x, layout.button_y, layout.button_w, layout.button_h) then
             pl_set_visible(not G.playlog_visible)
         elseif G.playlog_visible and (
-            pl_point_in_rect(x, y, layout.resize_tl_x, layout.resize_tl_y, layout.resize_corner, layout.resize_corner)
-            or pl_point_in_rect(x, y, layout.resize_tr_x, layout.resize_tr_y, layout.resize_corner, layout.resize_corner)
-            or pl_point_in_rect(x, y, layout.resize_bl_x, layout.resize_bl_y, layout.resize_corner, layout.resize_corner)
-            or pl_point_in_rect(x, y, layout.resize_br_x, layout.resize_br_y, layout.resize_corner, layout.resize_corner)
-            or pl_point_in_rect(x, y, layout.resize_l_x, layout.resize_l_y, layout.resize_l_w, layout.resize_l_h)
-            or pl_point_in_rect(x, y, layout.resize_r_x, layout.resize_r_y, layout.resize_r_w, layout.resize_r_h)
-            or pl_point_in_rect(x, y, layout.resize_t_x, layout.resize_t_y, layout.resize_t_w, layout.resize_t_h)
-            or pl_point_in_rect(x, y, layout.resize_b_x, layout.resize_b_y, layout.resize_b_w, layout.resize_b_h)
-        ) then
+                pl_point_in_rect(x, y, layout.resize_tl_x, layout.resize_tl_y, layout.resize_corner, layout.resize_corner)
+                or pl_point_in_rect(x, y, layout.resize_tr_x, layout.resize_tr_y, layout.resize_corner, layout.resize_corner)
+                or pl_point_in_rect(x, y, layout.resize_bl_x, layout.resize_bl_y, layout.resize_corner, layout.resize_corner)
+                or pl_point_in_rect(x, y, layout.resize_br_x, layout.resize_br_y, layout.resize_corner, layout.resize_corner)
+                or pl_point_in_rect(x, y, layout.resize_l_x, layout.resize_l_y, layout.resize_l_w, layout.resize_l_h)
+                or pl_point_in_rect(x, y, layout.resize_r_x, layout.resize_r_y, layout.resize_r_w, layout.resize_r_h)
+                or pl_point_in_rect(x, y, layout.resize_t_x, layout.resize_t_y, layout.resize_t_w, layout.resize_t_h)
+                or pl_point_in_rect(x, y, layout.resize_b_x, layout.resize_b_y, layout.resize_b_w, layout.resize_b_h)
+            ) then
             G.playlog_panel_resizing = true
             if pl_point_in_rect(x, y, layout.resize_tl_x, layout.resize_tl_y, layout.resize_corner, layout.resize_corner) then
                 G.playlog_resize_mode = 'tl'
@@ -1322,11 +1353,11 @@ function love.mousepressed(x, y, button, istouch, presses)
             end
         elseif G.playlog_visible and pl_point_in_rect(x, y, layout.panel_x, layout.panel_y, layout.panel_w, layout.header_h) then
             --header drag: start dragging the panel
-            G.playlog_panel_dragging  = true
-            G.playlog_drag_start_x    = x
-            G.playlog_drag_start_y    = y
-            G.playlog_drag_base_dx    = G.playlog_drag_dx or 0
-            G.playlog_drag_base_dy    = G.playlog_drag_dy or 0
+            G.playlog_panel_dragging = true
+            G.playlog_drag_start_x   = x
+            G.playlog_drag_start_y   = y
+            G.playlog_drag_base_dx   = G.playlog_drag_dx or 0
+            G.playlog_drag_base_dy   = G.playlog_drag_dy or 0
         elseif G.playlog_config_open then
             local pk = G.playlog_picker
             if pk then
