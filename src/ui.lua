@@ -217,6 +217,13 @@ local function pl_draw_hover_tooltip(hovered)
             center = tag; is_tag = true
         end
     end
+    local is_blind = false
+    if not center then
+        local blind = G.P_BLINDS[hovered.key]
+        if blind then
+            center = blind; is_blind = true
+        end
+    end
     if not center then return end
     if not G or not G.ROOM or not G.ROOM.T then return end
 
@@ -270,7 +277,7 @@ local function pl_draw_hover_tooltip(hovered)
 
     local x, y = pl_get_tooltip_pos()
 
-    local card_center = (is_seal or is_tag or center.set == 'Edition')
+    local card_center = (is_seal or is_blind or is_tag or center.set == 'Edition')
         and (G.P_CENTERS.j_joker or G.P_CENTERS.c_base)
         or center
     if not pl_tooltip_card or pl_tooltip_card._pl_key ~= hovered.key then
@@ -345,6 +352,15 @@ local function pl_draw_hover_tooltip(hovered)
                 localize { type = 'name', set = res.name_set or target.set, key = res.name_key or target.key, nodes = name, vars = res.name_vars or target.vars or {} }
             end
         end
+
+        local blind_name, blind_desc
+        if is_blind then
+            display_card = SMODS.create_sprite(0, 0, 1, 1, SMODS.get_atlas(center.atlas) or 'blind_chips', center.pos)
+            local blind_ui = create_UIBox_blind_popup(center, true)
+            blind_name = blind_ui.nodes[1]
+            blind_desc = blind_ui.nodes[2]
+        end
+
         if not display_card then
             display_card = Card(0, 0, G.CARD_W / 1.2, G.CARD_H / 1.2, nil, card_center)
             display_card.no_ui = true
@@ -360,12 +376,12 @@ local function pl_draw_hover_tooltip(hovered)
         end
 
         local card_nodes = {
-            full_UI_table.name and {
+            blind_name or full_UI_table.name and {
                 n = G.UIT.R,
                 config = { align = "cm", padding = 0.07, r = 0.1, colour = G.C.CLEAR },
                 nodes = full_UI_table.name
             } or desc_from_rows(name, true),
-            desc_from_rows(description)
+            blind_desc or desc_from_rows(description)
         }
 
         if full_UI_table.joy_consumable then -- supporting my own mod :3
