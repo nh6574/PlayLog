@@ -252,6 +252,15 @@ local function pl_draw_hover_tooltip(hovered)
         return x, y
     end
 
+    local function pl_apply_tooltip_position()
+        local x, y = pl_get_tooltip_pos()
+        local tooltip_w, tooltip_h = pl_get_tooltip_size()
+        if pl_tooltip_card and pl_tooltip_card.T then
+            pl_tooltip_card.T.x = x + tooltip_w * 0.5
+            pl_tooltip_card.T.y = y + tooltip_h * 0.5
+        end
+    end
+
     local x, y = pl_get_tooltip_pos()
 
     local card_center = (is_seal or center.set == 'Edition')
@@ -274,11 +283,7 @@ local function pl_draw_hover_tooltip(hovered)
         pl_tooltip_card.ambient_tilt = 0
     end
 
-    x, y = pl_get_tooltip_pos()
-    if pl_tooltip_card and pl_tooltip_card.T then
-        pl_tooltip_card.T.x = x + card_w * 0.5
-        pl_tooltip_card.T.y = y + card_h * 0.5
-    end
+    pl_apply_tooltip_position()
     pl_tooltip_card.T.r = 0
 
     pl_tooltip_card.states.hover.can = false
@@ -429,11 +434,13 @@ local function pl_draw_hover_tooltip(hovered)
                 instance_type = "POPUP"
             }
         }
+        pl_apply_tooltip_position()
     end
 
     if pl_tooltip_card.update then
         pl_tooltip_card:update(0)
     end
+    pl_apply_tooltip_position()
 
     love.graphics.push("all")
     love.graphics.setCanvas({ love.graphics.getCanvas(), stencil = true })
