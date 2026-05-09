@@ -103,6 +103,13 @@ PlayLog.LogType {
 }
 
 PlayLog.LogType {
+    key = "resume",
+    get_message = function(self, args)
+        return PlayLog.localize("resumed")
+    end
+}
+
+PlayLog.LogType {
     key = "selected_blind",
     get_message = function(self, args)
         return PlayLog.localize("selected_blind", { format_center_from_key(args.blind) })
@@ -373,7 +380,8 @@ PlayLog.LogType {
 PlayLog.LogType {
     key = "reroll_shop",
     get_message = function(self, args)
-        return PlayLog.localize("reroll_shop", { args.amount })
+        return PlayLog.localize("reroll_shop",
+            { args.amount, PlayLog.loc_list(format_card_list(args.cards, "attention")) })
     end
 }
 

@@ -31,6 +31,7 @@ return {
             -- Logging
             started = "Started game on #1#",
             started_challenge = "Started {C:attention}#1#{} challenge on #2#",
+            resumed = "Resumed game",
             mod_options = "{C:attention}#1#{}: #2# enabled",
             selected_blind = "Selected {C:attention}#1#{}",
             defeated_blind = "Defeated {C:attention}#1#{}",
@@ -45,7 +46,7 @@ return {
             used = "{C:attention}#1#{} used",
             starting_shop = "Started {C:attention}shop{}\nShop contains: #1#",
             ending_shop = "Ended {C:attention}shop{}",
-            reroll_shop = "Rerolled {C:attention}shop{} for {C:money}$#1#{}",
+            reroll_shop = "Rerolled {C:attention}shop{} for {C:money}$#1#{} to #2#",
             reroll_shop_into = "Rerolled into: #1#",
             added = "{C:attention}#1#{} added",
             added_to = "{C:attention}#1#{} added to {C:attention}#2#",

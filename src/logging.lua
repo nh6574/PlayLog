@@ -23,7 +23,12 @@ SMODS.current_mod.calculate = function(self, context)
     end
 
     if context.tag_triggered then
-        PlayLog.log { type = "tag_applied", tag = context.tag_triggered.key }
+        G.E_MANAGER:add_event(Event({
+            func = function()
+                PlayLog.log { type = "tag_applied", tag = context.tag_triggered.key }
+                return true
+            end
+        }))
     end
 
     if context.poker_hand_changed then
@@ -51,8 +56,7 @@ SMODS.current_mod.calculate = function(self, context)
     if context.reroll_shop then
         G.E_MANAGER:add_event(Event({
             func = function()
-                PlayLog.log { type = "reroll_shop", amount = context.cost }
-                PlayLog.log { type = "reroll_shop_into", cards = G.shop_jokers.cards }
+                PlayLog.log { type = "reroll_shop", amount = context.cost, cards = G.shop_jokers.cards }
                 return true
             end
         }))
@@ -133,7 +137,12 @@ local SMODS_upgrade_poker_hands_ref = SMODS.upgrade_poker_hands
 function SMODS.upgrade_poker_hands(args, ...)
     local ret = SMODS_upgrade_poker_hands_ref(args, ...)
     if args.from and args.from.config.center_key ~= "c_black_hole" then
-        PlayLog.log { type = "leveled_up", hands = args.hands, card = args.from.key or args.from }
+        G.E_MANAGER:add_event(Event({
+            func = function()
+                PlayLog.log { type = "leveled_up", hands = args.hands, card = args.from.key or args.from }
+                return true
+            end
+        }))
     end
     return ret
 end
@@ -158,7 +167,7 @@ function change_shop_size(mod, ...)
     G.E_MANAGER:add_event(Event({
         func = function()
             PlayLog.log { type = "area_size", area = G.shop_jokers, amount = mod }
-            if mod > 0 and G.shop_jokers and G.STATE == G.STATES.SHOP then
+            if mod > 0 and G.shop_jokers then
                 PlayLog.log { type = "reroll_shop_into", cards = G.shop_jokers.cards }
             end
             return true
@@ -174,7 +183,7 @@ function SMODS.change_voucher_limit(mod, ...)
     G.E_MANAGER:add_event(Event({
         func = function()
             PlayLog.log { type = "area_size", area = G.shop_vouchers, amount = mod }
-            if mod > 0 and G.shop_vouchers and G.STATE == G.STATES.SHOP then
+            if mod > 0 and G.shop_vouchers then
                 PlayLog.log { type = "reroll_shop_into", cards = G.shop_vouchers.cards }
             end
             return true
@@ -189,11 +198,21 @@ function SMODS.change_booster_limit(mod, ...)
     G.E_MANAGER:add_event(Event({
         func = function()
             PlayLog.log { type = "area_size", area = G.shop_booster, amount = mod }
-            if mod > 0 and G.shop_booster and G.STATE == G.STATES.SHOP then
+            if mod > 0 and G.shop_booster then
                 PlayLog.log { type = "reroll_shop_into", cards = G.shop_booster.cards }
             end
             return true
         end
     }))
+    return ret
+end
+
+local game_start_run_ref = Game.start_run
+function Game:start_run(args, ...)
+    local ret = game_start_run_ref(self, args, ...)
+
+    if args.savetext then
+        PlayLog.log { type = "resume" }
+    end
     return ret
 end
