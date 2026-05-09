@@ -248,23 +248,26 @@ local function pl_draw_hover_tooltip(hovered)
         local tooltip_w, tooltip_h = pl_get_tooltip_size()
         local x = anchor_x - tooltip_w * 0.5
         local y = anchor_y + tooltip_gap
+        local flipped = false
 
         if x < 0.08 then x = 0.08 end
         if x + tooltip_w > room_w - 0.08 then x = room_w - tooltip_w - 0.08 end
 
         if y + tooltip_h > room_h - 0.08 then
             y = (hovered.y * sy) - tooltip_h - tooltip_gap
+            flipped = true
         end
         if y < 0.08 then y = 0.08 end
-        return x, y
+        return x, y, flipped
     end
 
     local function pl_apply_tooltip_position()
-        local x, y = pl_get_tooltip_pos()
+        local x, y, flipped = pl_get_tooltip_pos()
         local tooltip_w, _ = pl_get_tooltip_size()
         if pl_tooltip_card and pl_tooltip_card.T then
             pl_tooltip_card.T.x = x + tooltip_w * 0.5
-            pl_tooltip_card.T.y = y + card_h * 0.5
+            local y_offset = card_h * 0.5
+            pl_tooltip_card.T.y = y + (flipped and -y_offset or y_offset)
         end
     end
 
