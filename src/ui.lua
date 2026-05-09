@@ -264,7 +264,7 @@ local function pl_draw_hover_tooltip(hovered)
         local tooltip_w, _ = pl_get_tooltip_size()
         if pl_tooltip_card and pl_tooltip_card.T then
             pl_tooltip_card.T.x = x + tooltip_w * 0.5
-            pl_tooltip_card.T.y = y + card_h * 0.25
+            pl_tooltip_card.T.y = y + card_h * 0.5
         end
     end
 
