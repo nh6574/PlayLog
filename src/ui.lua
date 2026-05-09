@@ -223,15 +223,16 @@ local function pl_draw_hover_tooltip(hovered)
 
     local anchor_x = (hovered.x + hovered.w * 0.5) * sx
     local anchor_y = (hovered.y + hovered.h) * sy
+    local tooltip_gap = math.max(10 * sy, (hovered.h or 0) * sy * 0.7)
 
     local x = anchor_x - card_w * 0.5
-    local y = anchor_y - (12 * sy)
+    local y = anchor_y + tooltip_gap
 
     if x < 0.08 then x = 0.08 end
     if x + card_w > room_w - 0.08 then x = room_w - card_w - 0.08 end
 
     if y + card_h > room_h - 0.08 then
-        y = (hovered.y * sy) - card_h - (12 * sy)
+        y = (hovered.y * sy) - card_h - tooltip_gap
     end
     if y < 0.08 then y = 0.08 end
 
