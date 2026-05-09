@@ -139,6 +139,8 @@ local function pl_build_plain_log_text(run_id, plain_entries)
     local out = {}
     out[#out + 1] = "PLAYLOG2\t" .. tostring(run_id or "")
     out[#out + 1] = ""
+    out[#out + 1] = getDebugInfoForCrash()
+    out[#out + 1] = ""
     out[#out + 1] = PLAYLOG_SECTION_PLAIN
     for i = 1, #(plain_entries or {}) do
         local plain = tostring(plain_entries[i] or "")

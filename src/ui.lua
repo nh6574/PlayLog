@@ -52,6 +52,7 @@ end
 local function pl_copy_log_to_clipboard()
     local lines = G.playlog_plain_entries or {}
     local text = table.concat(lines, "\n")
+    text = text.. "\n\n".. getDebugInfoForCrash()
     if love and love.system and love.system.setClipboardText then
         love.system.setClipboardText(text)
         G.playlog_copy_feedback_t = 1.2
