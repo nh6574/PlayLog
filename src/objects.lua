@@ -231,7 +231,7 @@ PlayLog.LogType {
         if args.edition then
             conversion = format_center_from_key(args.edition)
         elseif args.seal then
-            conversion = localize(args.seal:lower() .. "_seal", "labels")
+            conversion = format_center_from_key(args.seal)
         elseif args.sticker then
             conversion = localize(args.sticker, "labels")
         end
