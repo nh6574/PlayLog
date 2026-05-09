@@ -210,6 +210,13 @@ local function pl_draw_hover_tooltip(hovered)
             center = seal; is_seal = true
         end
     end
+    local is_tag = false
+    if not center then
+        local tag = G.P_TAGS[hovered.key]
+        if tag then
+            center = tag; is_tag = true
+        end
+    end
     if not center then return end
     if not G or not G.ROOM or not G.ROOM.T then return end
 
@@ -263,7 +270,7 @@ local function pl_draw_hover_tooltip(hovered)
 
     local x, y = pl_get_tooltip_pos()
 
-    local card_center = (is_seal or center.set == 'Edition')
+    local card_center = (is_seal or is_tag or center.set == 'Edition')
         and (G.P_CENTERS.j_joker or G.P_CENTERS.c_base)
         or center
     if not pl_tooltip_card or pl_tooltip_card._pl_key ~= hovered.key then
@@ -332,17 +339,21 @@ local function pl_draw_hover_tooltip(hovered)
                 localize { type = 'name', set = res.name_set or target.set, key = res.name_key or target.key, nodes = name, vars = res.name_vars or target.vars or {} }
             end
         end
-
-        local display_card = Card(0, 0, G.CARD_W / 1.2, G.CARD_H / 1.2, nil, card_center)
-        display_card.no_ui = true
-        display_card.no_shadow = true
-        if center.set == 'Edition' then
-            pcall(function() display_card:set_edition(center.key, true, true) end)
-        elseif is_seal then
-            local seal_key = (SMODS and SMODS.Seal and SMODS.Seal.badge_to_key[hovered.key]) or hovered.key
-            if G.P_SEALS and G.P_SEALS[seal_key] then
-                pcall(function() display_card:set_seal(seal_key, true, true) end)
+        local display_card
+        if not is_tag then
+            display_card = Card(0, 0, G.CARD_W / 1.2, G.CARD_H / 1.2, nil, card_center)
+            display_card.no_ui = true
+            display_card.no_shadow = true
+            if center.set == 'Edition' then
+                pcall(function() display_card:set_edition(center.key, true, true) end)
+            elseif is_seal then
+                local seal_key = (SMODS and SMODS.Seal and SMODS.Seal.badge_to_key[hovered.key]) or hovered.key
+                if G.P_SEALS and G.P_SEALS[seal_key] then
+                    pcall(function() display_card:set_seal(seal_key, true, true) end)
+                end
             end
+        else
+            _, display_card = Tag(hovered.key):generate_UI()
         end
 
         local card_nodes = {
