@@ -81,8 +81,16 @@ SMODS.current_mod.reset_game_globals = function(run_start)
             PlayLog.log_store.begin_new_run()
         end
         PlayLog.log { type = "started", modifiers = PlayLog.get_run_modifiers(), challenge = G.GAME.challenge }
+        PlayLog.run_options()
         PlayLog.log { type = "start_ante", ante = G.GAME.round_resets.ante }
     end
+end
+
+---Called at the start of the run, hook for adding logs
+function PlayLog.run_options()
+    -- Example:
+    -- PlayLog.log { type = "options", mod = localize { type = 'name_text', set = 'Mod', key = "PlayLog" }, options = {"Log", "Only Mult Jokers", "Funky Mode"}  }
+    -- This will say "PlayLog: Log, Only Mult Jokers and Funky Mode enabled"
 end
 
 local SMODS_upgrade_poker_hands_ref = SMODS.upgrade_poker_hands

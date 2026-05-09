@@ -2,5 +2,5 @@
 
 function PlayLog.log(args)
     args = args or {}
-    pl_enqueue_rich_log(PlayLog.LogTypes[args.type]:get_message(args))
+    PlayLog.log_event(PlayLog.LogTypes[args.type]:get_message(args), args.vars)
 end

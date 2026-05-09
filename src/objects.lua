@@ -79,11 +79,13 @@ local function format_card(card)
     return "{T:" .. card.config.center.key .. "}" .. name_text .. "{}"
 end
 
-local function format_card_list(list)
+local function format_card_list(list, color)
     if not list then return "ERROR" end
     local card_list = {}
+    local start_string = color and "{C:" .. color .. "}" or ''
+    local end_string = color and "{}" or ''
     for _, card in ipairs(list or {}) do
-        card_list[#card_list + 1] = format_card(card)
+        card_list[#card_list + 1] = start_string .. format_card(card) .. end_string
     end
     return card_list
 end
@@ -93,9 +95,10 @@ PlayLog.LogType {
     get_message = function(self, args)
         if args.challenge then
             return PlayLog.localize("started_challenge",
-                { localize(args.challenge, 'challenge_names'), PlayLog.loc_list(format_card_list(args.modifiers)) })
+                { localize(args.challenge, 'challenge_names'), PlayLog.loc_list(format_card_list(args.modifiers,
+                    "attention")) })
         end
-        return PlayLog.localize("started", { PlayLog.loc_list(format_card_list(args.modifiers)) })
+        return PlayLog.localize("started", { PlayLog.loc_list(format_card_list(args.modifiers, "attention")) })
     end
 }
 
@@ -151,7 +154,8 @@ PlayLog.LogType {
 PlayLog.LogType {
     key = "creates",
     get_message = function(self, args)
-        return PlayLog.localize("creates", { format_card(args.card), PlayLog.loc_list(format_card_list(args.created)) })
+        return PlayLog.localize("creates",
+            { format_card(args.card), PlayLog.loc_list(format_card_list(args.created, "attention")) })
     end
 }
 
@@ -159,7 +163,7 @@ PlayLog.LogType {
     key = "destroys",
     get_message = function(self, args)
         return PlayLog.localize("destroys",
-            { format_card(args.card), PlayLog.loc_list(format_card_list(args.destroyed)) })
+            { format_card(args.card), PlayLog.loc_list(format_card_list(args.destroyed, "attention")) })
     end
 }
 
@@ -168,10 +172,11 @@ PlayLog.LogType {
     get_message = function(self, args)
         if args.copied_to then
             return PlayLog.localize("copies_into",
-                { format_card(args.card), PlayLog.loc_list(format_card_list(args.copied)),
-                    PlayLog.loc_list(format_card_list(args.copied_to)) })
+                { format_card(args.card), PlayLog.loc_list(format_card_list(args.copied, "attention")),
+                    PlayLog.loc_list(format_card_list(args.copied_to, "attention")) })
         end
-        return PlayLog.localize("copies", { format_card(args.card), PlayLog.loc_list(format_card_list(args.copied)) })
+        return PlayLog.localize("copies",
+            { format_card(args.card), PlayLog.loc_list(format_card_list(args.copied, "attention")) })
     end
 }
 
@@ -180,11 +185,12 @@ PlayLog.LogType {
     get_message = function(self, args)
         if args.area then
             return PlayLog.localize("added_to",
-                { args.cards and PlayLog.loc_list(format_card_list(args.cards)) or format_card(args.card), PlayLog
-                    .get_area_name(args.area) })
+                { args.cards and PlayLog.loc_list(format_card_list(args.cards, "attention")) or format_card(args.card),
+                    PlayLog
+                        .get_area_name(args.area) })
         end
         return PlayLog.localize("added",
-            { args.cards and PlayLog.loc_list(format_card_list(args.cards)) or format_card(args.card) })
+            { args.cards and PlayLog.loc_list(format_card_list(args.cards, "attention")) or format_card(args.card) })
     end
 }
 
@@ -195,13 +201,14 @@ PlayLog.LogType {
         if args.enhancement then
             conversion = format_center_from_key(args.enhancement)
         elseif args.suit then
-            conversion = localize(args.suit, "suits_plural")
+            conversion = "{C:" .. args.suit:lower() .. "}" .. localize(args.suit, "suits_plural") .. "{}"
         elseif args.rank then
             conversion = localize(args.rank, "ranks")
         end
 
         return PlayLog.localize("converts",
-            { format_card(args.card), PlayLog.loc_list(format_card_list(args.converted)), conversion or "ERROR" })
+            { format_card(args.card), PlayLog.loc_list(format_card_list(args.converted, "attention")), conversion or
+            "ERROR" })
     end
 }
 
@@ -214,7 +221,7 @@ PlayLog.LogType {
             if args.enhancements then
                 conversion = format_center_from_key(args.enhancements[i])
             elseif args.suits then
-                conversion = localize(args.suits[i], "suits_plural")
+                conversion = "{C:" .. args.suits[i]:lower() .. "}" .. localize(args.suits[i], "suits_plural") .. "{}"
             elseif args.ranks then
                 conversion = localize(args.ranks[i], "ranks")
             end
@@ -240,7 +247,8 @@ PlayLog.LogType {
         end
 
         return PlayLog.localize("applied",
-            { format_card(args.card), PlayLog.loc_list(format_card_list(args.applied)), conversion or "ERROR" })
+            { format_card(args.card), PlayLog.loc_list(format_card_list(args.applied, "attention")), conversion or
+            "ERROR" })
     end
 }
 
@@ -323,7 +331,7 @@ PlayLog.LogType {
     key = "booster_opened",
     get_message = function(self, args)
         return PlayLog.localize("booster_opened",
-            { format_card(args.booster), PlayLog.loc_list(format_card_list(args.cards)) })
+            { format_card(args.booster), PlayLog.loc_list(format_card_list(args.cards, "attention")) })
     end
 }
 
@@ -345,5 +353,12 @@ PlayLog.LogType {
     key = "lost",
     get_message = function(self, args)
         return PlayLog.localize(args.endless and "lost_endless" or "lost")
+    end
+}
+
+PlayLog.LogType {
+    key = "options",
+    get_message = function(self, args)
+        return PlayLog.localize("mod_options", { args.mod, PlayLog.loc_list(args.options) })
     end
 }
