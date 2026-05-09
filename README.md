@@ -12,7 +12,5 @@ Adds a log of every action taken in a run.
 
 If you have any issues feel free to contact me on [Bluesky](https://bsky.app/profile/nh6574.com) or [on the official Balatro Discord as nh6574](https://discord.com/invite/balatro)
 
-And here's my [ko-fi link](https://ko-fi.com/nh6574) if you feel especially grateful.
-
 Also check out my other Quality of Life mod [JokerDisplay](https://github.com/nh6574/JokerDisplay)!
 or my Yu-Gi-Oh! mod [JoyousSpring](https://github.com/nh6574/JoyousSpring)!

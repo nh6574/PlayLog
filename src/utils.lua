@@ -273,7 +273,10 @@ function PlayLog.get_area_name(area)
         [G.jokers] = "joker_area",
         [G.consumeables] = "consumable_area",
         [G.hand] = "hand_area",
-        [G.deck] = "deck_area"
+        [G.deck] = "deck_area",
+        [G.shop_jokers] = "shop_jokers_area",
+        [G.shop_vouchers] = "shop_vouchers_area",
+        [G.shop_booster] = "shop_boosters_area",
     }
     return area_names[area] and PlayLog.localize(area_names[area]) or nil
 end
@@ -294,6 +297,25 @@ end
 ---@return table
 function PlayLog.get_run_modifiers()
     local modifiers = { G.GAME.selected_back_key.key, G.P_CENTER_POOLS.Stake[G.GAME.stake].key }
-    if G.GAME.selected_sleeve then table.insert(modifiers, 2, G.GAME.selected_sleeve) end
+    if G.GAME.selected_sleeve then table.insert(modifiers, 2, G.GAME.selected_sleeve) end -- Card Sleeves mod compat
     return modifiers
+end
+
+---Returns the shop areas. Hook to add more
+---@return table
+function PlayLog.get_shop_areas()
+    return { G.shop_jokers, G.shop_vouchers, G.shop_booster }
+end
+
+---Returns all cards in the shop areas
+---@return table
+function PlayLog.get_shop_area_cards()
+    local areas = PlayLog.get_shop_areas()
+    local cards = {}
+    for _, area in ipairs(areas) do
+        for _, card in ipairs(area.cards or {}) do
+            cards[#cards + 1] = card
+        end
+    end
+    return cards
 end

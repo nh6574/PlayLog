@@ -22,6 +22,10 @@ SMODS.current_mod.calculate = function(self, context)
         }))
     end
 
+    if context.tag_triggered then
+        PlayLog.log { type = "tag_applied", tag = context.tag_triggered.key }
+    end
+
     if context.poker_hand_changed then
         G.E_MANAGER:add_event(Event({
             func = function()
@@ -35,6 +39,20 @@ SMODS.current_mod.calculate = function(self, context)
         G.E_MANAGER:add_event(Event({
             func = function()
                 PlayLog.log { type = "added", cards = context.cards, area = (context.cards[1] or {}).area }
+                return true
+            end
+        }))
+    end
+
+    if context.using_consumeable then
+        PlayLog.log { type = "use", card = context.consumeable }
+    end
+
+    if context.reroll_shop then
+        G.E_MANAGER:add_event(Event({
+            func = function()
+                PlayLog.log { type = "reroll_shop", amount = context.cost }
+                PlayLog.log { type = "reroll_shop_into", cards = G.shop_jokers.cards }
                 return true
             end
         }))
@@ -61,6 +79,24 @@ SMODS.current_mod.calculate = function(self, context)
         G.E_MANAGER:add_event(Event({
             func = function()
                 PlayLog.log { type = "booster_opened", booster = context.card, cards = G.pack_cards.cards }
+                return true
+            end
+        }))
+    end
+
+    if context.starting_shop then
+        G.E_MANAGER:add_event(Event({
+            func = function()
+                PlayLog.log { type = "starting_shop", cards = PlayLog.get_shop_area_cards() }
+                return true
+            end
+        }))
+    end
+
+    if context.ending_shop then
+        G.E_MANAGER:add_event(Event({
+            func = function()
+                PlayLog.log { type = "ending_shop" }
                 return true
             end
         }))
@@ -113,4 +149,51 @@ local win_game_ref = win_game
 function win_game(...)
     PlayLog.log { type = "win" }
     return win_game_ref(...)
+end
+
+local change_shop_size_ref = change_shop_size
+function change_shop_size(mod, ...)
+    local ret = change_shop_size_ref(mod, ...)
+
+    G.E_MANAGER:add_event(Event({
+        func = function()
+            PlayLog.log { type = "area_size", area = G.shop_jokers, amount = mod }
+            if mod > 0 and G.shop_jokers and G.STATE == G.STATES.SHOP then
+                PlayLog.log { type = "reroll_shop_into", cards = G.shop_jokers.cards }
+            end
+            return true
+        end
+    }))
+
+    return ret
+end
+
+local smods_change_voucher_limit_ref = SMODS.change_voucher_limit
+function SMODS.change_voucher_limit(mod, ...)
+    local ret = smods_change_voucher_limit_ref(mod, ...)
+    G.E_MANAGER:add_event(Event({
+        func = function()
+            PlayLog.log { type = "area_size", area = G.shop_vouchers, amount = mod }
+            if mod > 0 and G.shop_vouchers and G.STATE == G.STATES.SHOP then
+                PlayLog.log { type = "reroll_shop_into", cards = G.shop_vouchers.cards }
+            end
+            return true
+        end
+    }))
+    return ret
+end
+
+local smods_change_booster_limit_ref = SMODS.change_booster_limit
+function SMODS.change_booster_limit(mod, ...)
+    local ret = smods_change_booster_limit_ref(mod, ...)
+    G.E_MANAGER:add_event(Event({
+        func = function()
+            PlayLog.log { type = "area_size", area = G.shop_booster, amount = mod }
+            if mod > 0 and G.shop_booster and G.STATE == G.STATES.SHOP then
+                PlayLog.log { type = "reroll_shop_into", cards = G.shop_booster.cards }
+            end
+            return true
+        end
+    }))
+    return ret
 end

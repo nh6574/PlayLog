@@ -21,6 +21,9 @@ return {
             consumable_area = "consumable slots",
             hand_area = "hand",
             deck_area = "deck",
+            shop_jokers_area = "shop",
+            shop_vouchers_area = "voucher shop",
+            shop_boosters_area = "booster shop",
 
             -- Others
             all_hands = "all hands",
@@ -39,6 +42,11 @@ return {
             cash_out = "{C:money}$#1#{} cash out",
             creates = "{C:attention}#1#{} created #2#",
             destroys = "{C:attention}#1#{} destroyed #2#",
+            used = "{C:attention}#1#{} used",
+            starting_shop = "Started {C:attention}shop{}\nShop contains: #1#",
+            ending_shop = "Ended {C:attention}shop{}",
+            reroll_shop = "Rerolled {C:attention}shop{} for {C:money}$#1#{}",
+            reroll_shop_into = "Rerolled into: #1#",
             added = "{C:attention}#1#{} added",
             added_to = "{C:attention}#1#{} added to {C:attention}#2#",
             converts = "{C:attention}#1#{} turned #2# into {C:attention}#3#",
@@ -62,6 +70,7 @@ return {
             win = "Won game!",
             lost = "Lost game!",
             lost_endless = "Lost Endless Mode!",
+            tag_applied = "{C:attention}#1#{} applied"
         }
     }
 }

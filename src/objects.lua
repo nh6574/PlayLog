@@ -60,7 +60,7 @@ local function format_card(card)
         end
         return card
     end
-    if card.playing_card then -- TODO: other than figuring how to pass the values/modifiers to the UI, how are no rank/suit cards displayed?
+    if card.playing_card or card.config.center.set == "Default" or card.config.center.set == "Enhanced" then -- TODO: other than figuring how to pass the values/modifiers to the UI, how are no rank/suit cards displayed?
         return PlayLog.localize_rank_of_suit(card.base.value, card.base.suit)
     end
 
@@ -186,8 +186,7 @@ PlayLog.LogType {
         if args.area then
             return PlayLog.localize("added_to",
                 { args.cards and PlayLog.loc_list(format_card_list(args.cards, "attention")) or format_card(args.card),
-                    PlayLog
-                        .get_area_name(args.area) })
+                    PlayLog.get_area_name(args.area) })
         end
         return PlayLog.localize("added",
             { args.cards and PlayLog.loc_list(format_card_list(args.cards, "attention")) or format_card(args.card) })
@@ -256,9 +255,10 @@ PlayLog.LogType {
     key = "money",
     get_message = function(self, args)
         if args.amount < 0 then
-            return PlayLog.localize("money_taken", { format_card(args.card), math.abs(args.amount) })
+            return PlayLog.localize("money_taken",
+                args.card and { format_card(args.card), math.abs(args.amount) } or { math.abs(args.amount) })
         end
-        return PlayLog.localize("money", { format_card(args.card), args.amount })
+        return PlayLog.localize("money", args.card and { format_card(args.card), args.amount } or { args.amount })
     end
 }
 
@@ -328,6 +328,13 @@ PlayLog.LogType {
 }
 
 PlayLog.LogType {
+    key = "use",
+    get_message = function(self, args)
+        return PlayLog.localize("used", { format_card(args.card) })
+    end
+}
+
+PlayLog.LogType {
     key = "booster_opened",
     get_message = function(self, args)
         return PlayLog.localize("booster_opened",
@@ -360,5 +367,42 @@ PlayLog.LogType {
     key = "options",
     get_message = function(self, args)
         return PlayLog.localize("mod_options", { args.mod, PlayLog.loc_list(args.options) })
+    end
+}
+
+PlayLog.LogType {
+    key = "reroll_shop",
+    get_message = function(self, args)
+        return PlayLog.localize("reroll_shop", { args.amount })
+    end
+}
+
+PlayLog.LogType {
+    key = "reroll_shop_into",
+    get_message = function(self, args)
+        return PlayLog.localize("reroll_shop_into",
+            { PlayLog.loc_list(format_card_list(args.cards, "attention")) })
+    end
+}
+
+PlayLog.LogType {
+    key = "starting_shop",
+    get_message = function(self, args)
+        return PlayLog.localize("starting_shop",
+            { PlayLog.loc_list(format_card_list(args.cards, "attention")) })
+    end
+}
+
+PlayLog.LogType {
+    key = "ending_shop",
+    get_message = function(self, args)
+        return PlayLog.localize("ending_shop")
+    end
+}
+
+PlayLog.LogType {
+    key = "tag_applied",
+    get_message = function(self, args)
+        return PlayLog.localize("tag_applied", { format_card(args.tag) })
     end
 }
