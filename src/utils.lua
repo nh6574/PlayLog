@@ -282,3 +282,11 @@ function PlayLog.localize_rank_of_suit(rank, suit)
             localize(suit, 'suits_plural'),
         })
 end
+
+---Returns current deck and stake, and sleeve if available. Hook to add more modifiers
+---@return table
+function PlayLog.get_run_modifiers()
+    local modifiers = { G.GAME.selected_back_key.key, G.P_CENTER_POOLS.Stake[G.GAME.stake].key }
+    if G.GAME.selected_sleeve then table.insert(modifiers, 2, G.GAME.selected_sleeve) end
+    return modifiers
+end

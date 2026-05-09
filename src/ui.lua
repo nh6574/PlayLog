@@ -224,6 +224,13 @@ local function pl_draw_hover_tooltip(hovered)
             center = blind; is_blind = true
         end
     end
+    local is_stake = false
+    if not center then
+        local stake = G.P_STAKES[hovered.key]
+        if stake then
+            center = stake; is_stake = true
+        end
+    end
     if not center then return end
     if not G or not G.ROOM or not G.ROOM.T then return end
 
@@ -280,7 +287,7 @@ local function pl_draw_hover_tooltip(hovered)
 
     local x, y = pl_get_tooltip_pos()
 
-    local card_center = (is_seal or is_blind or is_tag or center.set == 'Edition')
+    local card_center = (is_seal or is_blind or is_stake or is_tag or center.set == 'Edition')
         and (G.P_CENTERS.j_joker or G.P_CENTERS.c_base)
         or center
     if not pl_tooltip_card or pl_tooltip_card._pl_key ~= hovered.key then
@@ -362,6 +369,12 @@ local function pl_draw_hover_tooltip(hovered)
             local blind_ui = create_UIBox_blind_popup(center, true)
             blind_name = blind_ui.nodes[1]
             blind_desc = blind_ui.nodes[2]
+        end
+
+        if is_stake then
+            display_card = SMODS.create_sprite(0, 0, 1, 1, SMODS.get_atlas(center.atlas), center.pos)
+            description = {}
+            localize { type = 'descriptions', key = center.key, set = center.set, nodes = description }
         end
 
         if not display_card then

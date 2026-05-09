@@ -86,13 +86,11 @@ end
 PlayLog.LogType {
     key = "started",
     get_message = function(self, args)
-        local deck = format_center_from_key(args.deck)
-        local stake = format_center_from_key(args.stake)
         if args.challenge then
             return PlayLog.localize("started_challenge",
-                { localize(args.challenge, 'challenge_names'), deck, stake })
+                { localize(args.challenge, 'challenge_names'), PlayLog.loc_list(format_card_list(args.modifiers)) })
         end
-        return PlayLog.localize("started", { deck, stake })
+        return PlayLog.localize("started", { PlayLog.loc_list(format_card_list(args.modifiers)) })
     end
 }
 

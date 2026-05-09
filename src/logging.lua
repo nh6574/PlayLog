@@ -80,7 +80,7 @@ SMODS.current_mod.reset_game_globals = function(run_start)
         if PlayLog.log_store and PlayLog.log_store.begin_new_run then
             PlayLog.log_store.begin_new_run()
         end
-        PlayLog.log { type = "started", deck = G.GAME.selected_back_key.key, stake = G.P_CENTER_POOLS.Stake[G.GAME.stake].key, challenge = G.GAME.challenge }
+        PlayLog.log { type = "started", modifiers = PlayLog.get_run_modifiers(), challenge = G.GAME.challenge }
         PlayLog.log { type = "start_ante", ante = G.GAME.round_resets.ante }
     end
 end
