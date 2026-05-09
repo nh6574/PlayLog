@@ -102,6 +102,7 @@ function PlayLog.parse_text(raw_text, loc_vars)
     local active_colour = copy_colour(default_colour)
     local active_bg = nil
     local active_tooltip = nil
+    local active_func = nil
     local active_scale = 1
     local active_underline = nil
     local active_strike = nil
@@ -123,6 +124,7 @@ function PlayLog.parse_text(raw_text, loc_vars)
             scale = active_scale,
             underline_colour = active_underline and copy_colour(active_underline) or nil,
             strikethrough_colour = active_strike and copy_colour(active_strike) or nil,
+            func = active_func
         }
     end
     local i = 1
@@ -164,6 +166,7 @@ function PlayLog.parse_text(raw_text, loc_vars)
             active_scale = 1
             active_underline = nil
             active_strike = nil
+            active_func = nil
             is_colored = false
         else
             local var_colour_idx = tag:match("V:([^,%}]+)")
@@ -194,6 +197,10 @@ function PlayLog.parse_text(raw_text, loc_vars)
                         is_colored = true
                     end
                 end
+            end
+            local func_tooltip_key = tag:match("F:([^,%}]+)")
+            if func_tooltip_key then
+                active_func = func_tooltip_key
             end
             local scale_key = tag:match("s:([^,%}]+)")
             if scale_key then

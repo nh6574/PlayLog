@@ -52,7 +52,7 @@ end
 local function pl_copy_log_to_clipboard()
     local lines = G.playlog_plain_entries or {}
     local text = table.concat(lines, "\n")
-    text = text.. "\n\n".. getDebugInfoForCrash()
+    text = text .. "\n\n" .. getDebugInfoForCrash()
     if love and love.system and love.system.setClipboardText then
         love.system.setClipboardText(text)
         G.playlog_copy_feedback_t = 1.2
@@ -83,7 +83,7 @@ local function pl_draw_rich_segments(segments, x, y, max_x, mouse_x, mouse_y, li
             lines = lines + 1
         end
     end
-    local function draw_text_chunk(seg_text, c, seg_tooltip, seg_scale, seg_bg, seg_underline, seg_strike)
+    local function draw_text_chunk(seg_text, c, seg_tooltip, seg_scale, seg_bg, seg_underline, seg_strike, seg_func)
         local draw_scale = scale * (seg_scale or 1)
         local seg_h = font:getHeight() * draw_scale
         local words = {}
@@ -116,11 +116,12 @@ local function pl_draw_rich_segments(segments, x, y, max_x, mouse_x, mouse_y, li
                 love.graphics.setColor(seg_strike[1] or 1, seg_strike[2] or 1, seg_strike[3] or 1, seg_strike[4] or 1)
                 love.graphics.rectangle("fill", draw_x, draw_y + seg_h * 0.55, token_w, 1)
             end
-            if seg_tooltip then
+            if seg_tooltip or seg_func then
                 if mouse_x >= draw_x and mouse_x <= (draw_x + token_w)
                     and mouse_y >= draw_y and mouse_y <= (draw_y + seg_h) then
                     hovered_tooltip = {
                         key = seg_tooltip,
+                        func = seg_func,
                         x = draw_x,
                         y = draw_y,
                         w = token_w,
@@ -156,7 +157,8 @@ local function pl_draw_rich_segments(segments, x, y, max_x, mouse_x, mouse_y, li
                         seg_scale,
                         seg.bg_colour,
                         seg.underline_colour,
-                        seg.strikethrough_colour
+                        seg.strikethrough_colour,
+                        seg.func
                     )
                     break
                 end
@@ -168,7 +170,8 @@ local function pl_draw_rich_segments(segments, x, y, max_x, mouse_x, mouse_y, li
                     seg_scale,
                     seg.bg_colour,
                     seg.underline_colour,
-                    seg.strikethrough_colour
+                    seg.strikethrough_colour,
+                    seg.func
                 )
                 draw_x = x
                 draw_y = draw_y + step
@@ -196,13 +199,39 @@ local function pl_remove_tooltip_card()
     pl_tooltip_card = nil
 end
 
+function PlayLog.create_tooltip_UIBox(nodes, func)
+    local ret = {
+        n = G.UIT.ROOT,
+        config = {
+            align = "cm",
+            padding = 0.1,
+            r = 0.12,
+            emboss = 0.1,
+            colour = PlayLog.config.border or lighten(G.C.JOKER_GREY, 0.5)
+        },
+        nodes = {
+            {
+                n = G.UIT.R,
+                config = { align = "cm", minw = 1, colour = PlayLog.config.panel_bg or adjust_alpha(darken(G.C.BLACK, 0.1), 0.8), r = 0.1 },
+                nodes = nodes
+            },
+        }
+    }
+    if func and PlayLog.FUNCS[func] then
+        ret = PlayLog.FUNCS[func](ret)
+    end
+    return ret
+end
+
 local function pl_draw_hover_tooltip(hovered)
-    if not hovered or not hovered.key then
+    if not hovered or not (hovered.key or hovered.func) then
         pl_remove_tooltip_card()
         return
     end
 
-    local center = G and G.P_CENTERS and G.P_CENTERS[hovered.key]
+    local is_func = not hovered.key and not not hovered.func
+
+    local center = G.P_CENTERS and (is_func and G.P_CENTERS.j_joker or G.P_CENTERS[hovered.key])
     local is_seal = false
     if not center and G and G.P_SEALS then
         local seal = G.P_SEALS[hovered.key]
@@ -378,7 +407,7 @@ local function pl_draw_hover_tooltip(hovered)
             localize { type = 'descriptions', key = center.key, set = center.set, nodes = description }
         end
 
-        if not display_card then
+        if not display_card and not is_func then
             display_card = Card(0, 0, G.CARD_W / 1.2, G.CARD_H / 1.2, nil, card_center)
             display_card.no_ui = true
             display_card.no_shadow = true
@@ -392,88 +421,80 @@ local function pl_draw_hover_tooltip(hovered)
             end
         end
 
-        local card_nodes = {
-            blind_name or full_UI_table.name and {
-                n = G.UIT.R,
-                config = { align = "cm", padding = 0.07, r = 0.1, colour = G.C.CLEAR },
-                nodes = full_UI_table.name
-            } or desc_from_rows(name, true),
-            blind_desc or desc_from_rows(description)
-        }
+        local card_nodes
+        if not is_func then
+            card_nodes = {
+                blind_name or full_UI_table.name and {
+                    n = G.UIT.R,
+                    config = { align = "cm", padding = 0.07, r = 0.1, colour = G.C.CLEAR },
+                    nodes = full_UI_table.name
+                } or desc_from_rows(name, true),
+                blind_desc or desc_from_rows(description)
+            }
 
-        if full_UI_table.joy_consumable then -- supporting my own mod :3
-            table.insert(card_nodes, 2, desc_from_rows(full_UI_table.joy_consumable))
-        end
 
-        if full_UI_table.multi_box then
-            for i, box in ipairs(full_UI_table.multi_box) do
-                box.background_colour = box.background_colour or
-                    full_UI_table.box_colours and full_UI_table.box_colours[i + 1] or nil
-                if full_UI_table.box_starts and full_UI_table.box_starts[i] then
-                    table.insert(box, 1, full_UI_table.box_starts[i])
-                end
-                if full_UI_table.box_ends and full_UI_table.box_ends[i] then table.insert(box, full_UI_table.box_ends[i]) end
-                table.insert(card_nodes, desc_from_rows(box))
+            if full_UI_table.joy_consumable then -- supporting my own mod :3
+                table.insert(card_nodes, 2, desc_from_rows(full_UI_table.joy_consumable))
             end
-        end
 
-        local badges = {}
-        SMODS.create_mod_badges(center, badges)
-        if badges[1] then
-            table.insert(card_nodes, {
-                n = G.UIT.R,
-                config = { align = "cm", padding = 0.03 },
-                nodes = badges
-            })
+            if full_UI_table.multi_box then
+                for i, box in ipairs(full_UI_table.multi_box) do
+                    box.background_colour = box.background_colour or
+                        full_UI_table.box_colours and full_UI_table.box_colours[i + 1] or nil
+                    if full_UI_table.box_starts and full_UI_table.box_starts[i] then
+                        table.insert(box, 1, full_UI_table.box_starts[i])
+                    end
+                    if full_UI_table.box_ends and full_UI_table.box_ends[i] then
+                        table.insert(box,
+                            full_UI_table.box_ends[i])
+                    end
+                    table.insert(card_nodes, desc_from_rows(box))
+                end
+            end
+
+
+            local badges = {}
+            SMODS.create_mod_badges(center, badges)
+            if badges[1] then
+                table.insert(card_nodes, {
+                    n = G.UIT.R,
+                    config = { align = "cm", padding = 0.03 },
+                    nodes = badges
+                })
+            end
+            badges.mod_set = nil
         end
-        badges.mod_set = nil
 
         pl_tooltip_card.children.playlog_box = UIBox {
-            definition = {
-                n = G.UIT.ROOT,
-                config = {
-                    align = "cm",
-                    padding = 0.1,
-                    r = 0.12,
-                    emboss = 0.1,
-                    colour = PlayLog.config.border or lighten(G.C.JOKER_GREY, 0.5)
-                },
-                nodes = {
-                    {
-                        n = G.UIT.R,
-                        config = { align = "cm", minw = 1, colour = PlayLog.config.panel_bg or adjust_alpha(darken(G.C.BLACK, 0.1), 0.8), r = 0.1 },
-                        nodes = {
-                            {
-                                n = G.UIT.C,
-                                config = { align = "cm", colour = G.C.CLEAR },
-                                nodes = {
-                                    {
-                                        n = G.UIT.R,
-                                        config = { padding = 0.05, r = 0.12, colour = G.C.CLEAR, emboss = 0.07 },
-                                        nodes = {
-                                            {
-                                                n = G.UIT.R,
-                                                config = { align = "cm", padding = 0.07, r = 0.1, colour = G.C.CLEAR },
-                                                nodes = card_nodes
-                                            }
-                                        }
-                                    }
+            definition = is_func and PlayLog.FUNCS[hovered.func]() or PlayLog.create_tooltip_UIBox({
+                {
+                    n = G.UIT.C,
+                    config = { align = "cm", colour = G.C.CLEAR },
+                    nodes = {
+                        {
+                            n = G.UIT.R,
+                            config = { padding = 0.05, r = 0.12, colour = G.C.CLEAR, emboss = 0.07 },
+                            nodes = {
+                                {
+                                    n = G.UIT.R,
+                                    config = { align = "cm", padding = 0.07, r = 0.1, colour = G.C.CLEAR },
+                                    nodes = card_nodes
                                 }
-                            },
-                            {
-                                n = G.UIT.C,
-                                config = { align = "cm", r = 0.2, padding = 0.05, minw = 1, colour = G.C.CLEAR },
-                                nodes = {
-                                    {
-                                        n = G.UIT.O,
-                                        config = { object = display_card }
-                                    }
-                                }
-                            },
+                            }
                         }
-                    },
-                }
-            },
+                    }
+                },
+                {
+                    n = G.UIT.C,
+                    config = { align = "cm", r = 0.2, padding = 0.05, minw = 1, colour = G.C.CLEAR },
+                    nodes = {
+                        {
+                            n = G.UIT.O,
+                            config = { object = display_card }
+                        }
+                    }
+                },
+            }, hovered.func),
             config = {
                 align = "cm",
                 offset = { x = 0, y = 0 },
@@ -713,7 +734,7 @@ function pl_enqueue_rich_log(raw_body)
         message_text = raw_body.text or raw_body.message or raw_body.raw_text or ""
         loc_vars = raw_body.loc_vars or raw_body.vars
     end
-    local raw_text = "{C:inactive}" .. time_text .. "{} " .. tostring(message_text or "")
+    local raw_text = "{F:playlog_time,C:inactive}" .. time_text .. "{} " .. tostring(message_text or "")
     local segments = PlayLog.parse_text(raw_text, loc_vars)
     local plain_line = pl_plain_from_segments(segments)
     G.playlog_plain_entries[#G.playlog_plain_entries + 1] = plain_line

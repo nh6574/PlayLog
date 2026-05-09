@@ -102,6 +102,7 @@ function LogStore.serialize_segments(segments)
             pl_encode_text(seg.tooltip or ""),
             pl_serialize_colour(seg.underline_colour),
             pl_serialize_colour(seg.strikethrough_colour),
+            pl_encode_text(seg.func or "")
         }, "|")
     end
     return table.concat(items, ";")
@@ -118,6 +119,7 @@ function LogStore.deserialize_segments(blob)
             local fields = pl_split_by(raw_seg, "|")
             local colour = pl_deserialize_colour(fields[2])
             local tooltip = pl_decode_text(fields[5] or "")
+            local func = pl_decode_text(fields[8] or "")
             local seg = {
                 text = pl_decode_text(fields[1] or ""),
                 colour = colour,
@@ -128,6 +130,7 @@ function LogStore.deserialize_segments(blob)
                 strikethrough_colour = pl_deserialize_colour(fields[7]),
             }
             if tooltip ~= "" then seg.tooltip = tooltip end
+            if func ~= "" then seg.func = func end
             segments[#segments + 1] = seg
         end
     end
