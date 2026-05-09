@@ -27,7 +27,7 @@ return {
 
             -- Logging
             started = "Started game on #1#",
-            started_challenge = "Started {C:attention}#1#{} on #2#",
+            started_challenge = "Started {C:attention}#1#{} challenge on #2#",
             selected_blind = "Selected {C:attention}#1#{}",
             defeated_blind = "Defeated {C:attention}#1#{}",
             skip_blind = "Skipped {C:attention}#1#{}",
