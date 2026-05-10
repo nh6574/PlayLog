@@ -217,7 +217,7 @@ function PlayLog.create_tooltip_UIBox(nodes, func)
             },
         }
     }
-    if func and PlayLog.FUNCS[func] then
+    if func and PlayLog.FUNCS and PlayLog.FUNCS[func] then
         ret = PlayLog.FUNCS[func](ret)
     end
     return ret
@@ -250,49 +250,47 @@ local function pl_build_func_tooltip_definition(hovered)
     if callback_result and type(callback_result) ~= 'string' and type(callback_result) ~= 'table' then
         callback_result = tostring(callback_result)
     end
-    local title_text = tostring((type(callback_result) == 'table' and callback_result.title) or function_name)
-    local title_rows = {
+    if type(callback_result) == 'string' then
+        callback_result = { text = callback_result }
+    end
+    local is_table = type(callback_result) == 'table'
+    local show_title = not (is_table and callback_result.title == false)
+    local title_text = show_title and tostring((is_table and callback_result.title) or function_name) or nil
+    local title_colour = (is_table and callback_result.title_colour) or G.C.WHITE
+    local title_scale = tonumber(is_table and callback_result.title_scale) or 0.52
+    local title_rows = show_title and {
         {
             {
                 n = G.UIT.T,
                 config = {
                     text = title_text,
-                    scale = 0.52,
-                    colour = G.C.WHITE,
-                    shadow = true,
+                    scale = title_scale,
+                    colour = title_colour,
+                    shadow = (callback_result and callback_result.title_shadow ~= false) or (not callback_result) or true,
                     align = 'cm',
                 }
             }
         }
-    }
+    } or nil
     local body_rows = {}
-    if type(callback_result) == 'string' then
-        body_rows[#body_rows + 1] = {
-            {
-                n = G.UIT.T,
-                config = {
-                    text = callback_result,
-                    scale = 0.44,
-                    colour = G.C.UI.TEXT_LIGHT,
-                    shadow = true,
-                    align = 'cm',
-                }
+    local bg_colour = nil
+    if is_table and type(callback_result.text) == 'string' then
+        local txt_scale = tonumber(callback_result.scale) or 0.44
+        local txt_colour = callback_result.colour or G.C.UI.TEXT_LIGHT
+        bg_colour = callback_result.background_colour or callback_result.bg_colour
+        local txt_shadow = callback_result.shadow ~= false
+        local txt_node = {
+            n = G.UIT.T,
+            config = {
+                text = callback_result.text,
+                scale = txt_scale,
+                colour = txt_colour,
+                shadow = txt_shadow,
+                align = 'cm',
             }
         }
-    elseif type(callback_result) == 'table' and type(callback_result.text) == 'string' then
-        body_rows[#body_rows + 1] = {
-            {
-                n = G.UIT.T,
-                config = {
-                    text = callback_result.text,
-                    scale = 0.44,
-                    colour = G.C.UI.TEXT_LIGHT,
-                    shadow = true,
-                    align = 'cm',
-                }
-            }
-        }
-    elseif type(callback_result) == 'table' and type(callback_result.rows) == 'table' then
+        body_rows[#body_rows + 1] = { txt_node }
+    elseif is_table and type(callback_result.rows) == 'table' then
         body_rows = callback_result.rows
     else
         body_rows[#body_rows + 1] = {
@@ -308,11 +306,13 @@ local function pl_build_func_tooltip_definition(hovered)
             }
         }
     end
+    if bg_colour then
+        body_rows.background_colour = bg_colour
+    end
     local body_node = desc_from_rows(body_rows)
-    local card_nodes = {
-        desc_from_rows(title_rows, true),
-        body_node,
-    }
+    local card_nodes = {}
+    if title_rows then card_nodes[#card_nodes + 1] = desc_from_rows(title_rows, true) end
+    card_nodes[#card_nodes + 1] = body_node
     return PlayLog.create_tooltip_UIBox({
         {
             n = G.UIT.C,
@@ -491,7 +491,7 @@ local function pl_draw_hover_tooltip(hovered)
 
         if type(full_UI_table.name) == "string" then full_UI_table.name = nil end
 
-        if not full_UI_table.name then
+        if not full_UI_table.name or type(full_UI_table.name) ~= 'table' then
             if is_seal then
                 if type(center.name) == 'string' and center.name ~= '' then
                     name[#name + 1] = { { n = G.UIT.T, config = { text = center.name, scale = 0.5, colour = G.C.WHITE, vert = false } } }
@@ -534,11 +534,11 @@ local function pl_draw_hover_tooltip(hovered)
         local card_nodes
         if not is_func then
             card_nodes = {
-                blind_name or full_UI_table.name and {
+                blind_name or (type(full_UI_table.name) == 'table' and full_UI_table.name and {
                     n = G.UIT.R,
                     config = { align = "cm", padding = 0.07, r = 0.1, colour = G.C.CLEAR },
                     nodes = full_UI_table.name
-                } or desc_from_rows(name, true),
+                } or nil) or desc_from_rows(name, true),
                 blind_desc or desc_from_rows(description)
             }
 
@@ -1223,6 +1223,104 @@ local function pl_set_visible(is_visible)
     end
 end
 
+--testing the funcs
+PlayLog.FUNCS = PlayLog.FUNCS or {}
+PlayLog.FUNCS['pl_test_string'] = function(payload, hovered)
+    return "Plain string return — title defaults to func name"
+end
+
+PlayLog.FUNCS['pl_test_text_only'] = function(payload, hovered)
+    return { text = "Table return with only .text set" }
+end
+
+PlayLog.FUNCS['pl_test_custom_title'] = function(payload, hovered)
+    return { title = "Custom Title", text = "Body text here" }
+end
+
+PlayLog.FUNCS['pl_test_no_title'] = function(payload, hovered)
+    return { title = false, text = "Title is hidden (title = false)" }
+end
+
+PlayLog.FUNCS['pl_test_title_colour'] = function(payload, hovered)
+    return {
+        title        = "Red Title",
+        title_colour = G.C.RED,
+        text         = "title_colour = G.C.RED",
+    }
+end
+
+PlayLog.FUNCS['pl_test_title_scale'] = function(payload, hovered)
+    return {
+        title       = "Big Title",
+        title_scale = 0.72,
+        text        = "title_scale = 0.72",
+    }
+end
+
+PlayLog.FUNCS['pl_test_body_colour'] = function(payload, hovered)
+    return {
+        text   = "Body text in green",
+        colour = G.C.GREEN,
+    }
+end
+
+PlayLog.FUNCS['pl_test_body_bg'] = function(payload, hovered)
+    return {
+        text      = "Body text with blue pill background",
+        colour    = G.C.WHITE,
+        bg_colour = G.C.BLUE,
+    }
+end
+
+PlayLog.FUNCS['pl_test_body_scale'] = function(payload, hovered)
+    return {
+        text  = "Body at scale 0.62",
+        scale = 0.62,
+    }
+end
+
+PlayLog.FUNCS['pl_test_all_options'] = function(payload, hovered)
+    return {
+        title        = "All Options",
+        title_colour = G.C.GOLD,
+        title_scale  = 0.65,
+        text         = "gold title, mult bg, white body, scale 0.55",
+        colour       = G.C.WHITE,
+        bg_colour    = G.C.MULT,
+        scale        = 0.55,
+    }
+end
+
+PlayLog.FUNCS['pl_test_rows'] = function(payload, hovered)
+    return {
+        title = "Rows Return",
+        rows = {
+            { { n = G.UIT.T, config = { text = "Row 1: chips", scale = 0.44, colour = G.C.CHIPS,  shadow = true, align = 'cm' } } },
+            { { n = G.UIT.T, config = { text = "Row 2: mult",  scale = 0.10, colour = G.C.MULT,   shadow = true, align = 'cm' } } },
+            { { n = G.UIT.T, config = { text = "Row 3: money", scale = 0.80, colour = G.C.MONEY,  shadow = true, align = 'cm' } } },
+        }
+    }
+end
+
+PlayLog.FUNCS['pl_test_payload'] = function(payload, hovered)
+    if not payload then return { title = false, text = "no payload" } end
+    return {
+        title = "Payload Demo",
+        text  = "chips: " .. tostring(payload.chips) .. "  mult: " .. tostring(payload.mult),
+        colour = G.C.CHIPS,
+    }
+end
+
+PlayLog.FUNCS['pl_test_no_shadow'] = function()
+    return {
+        title = "No Shadow Test",
+        title_shadow = false,
+        shadow = false,
+        text = "Both title and text have no shadow",
+        colour = G.C.RED,
+    }
+end
+
 G.FUNCS.playlog_open_log = function(e)
     --Editions
     pl_enqueue_rich_log("Card got {T:e_foil}Foil{} edition")
@@ -1335,6 +1433,23 @@ G.FUNCS.playlog_open_log = function(e)
             }
         }
     })
+        --more func-y tests
+        pl_enqueue_rich_log("{F:pl_test_string}[FUNC string]{}")
+        pl_enqueue_rich_log("{F:pl_test_text_only}[FUNC text only]{}")
+        pl_enqueue_rich_log("{F:pl_test_custom_title}[FUNC custom title]{}")
+        pl_enqueue_rich_log("{F:pl_test_no_title}[FUNC no title]{}")
+        pl_enqueue_rich_log("{F:pl_test_title_colour}[FUNC title colour]{}")
+        pl_enqueue_rich_log("{F:pl_test_title_scale}[FUNC title scale]{}")
+        pl_enqueue_rich_log("{F:pl_test_body_colour}[FUNC body colour]{}")
+        pl_enqueue_rich_log("{F:pl_test_body_bg}[FUNC body bg]{}")
+        pl_enqueue_rich_log("{F:pl_test_body_scale}[FUNC body scale]{}")
+        pl_enqueue_rich_log("{F:pl_test_no_shadow}[FUNC no shadow]{}")
+        pl_enqueue_rich_log("{F:pl_test_all_options}[FUNC all options]{}")
+        pl_enqueue_rich_log("{F:pl_test_rows}[FUNC rows]{}")
+        local payload_ref = PlayLog.store_func_payload('pl_test_payload', { chips = 150, mult = 8 })
+        if payload_ref then
+            pl_enqueue_rich_log("{F:" .. payload_ref .. "}[FUNC payload]{}")
+        end
 end
 
 local game_start_run_ref = Game.start_run
