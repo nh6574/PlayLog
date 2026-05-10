@@ -63,7 +63,7 @@ local function pl_build_hand_level_snapshot(payload)
     local old_mult = tonumber(payload.old_mult)
     local new_mult = tonumber(payload.new_mult)
     local function fmt(v)
-        return v ~= nil and tostring(v) or '?'
+        return v ~= nil and tostring(type(v) == "number" and number_format(v, 1000000) or v) or '?'
     end
     local function T(text, colour, scale)
         return {
@@ -87,13 +87,37 @@ local function pl_build_hand_level_snapshot(payload)
     end
     local function stat_row(level, chips, mult)
         return {
-            pill('lvl.' .. fmt(level), G.C.BLUE, 0.35),
+            {
+                n = G.UIT.C,
+                config = { align = "cm", padding = 0.01, r = 0.1, colour = G.C.HAND_LEVELS[math.min(7, tonumber(level))], minw = 1.5, outline = 0.8, outline_colour = G.C.WHITE },
+                nodes = {
+                    { n = G.UIT.T, config = { text = localize('k_level_prefix') .. level, scale = 0.5, colour = G.C.UI.TEXT_DARK } }
+                }
+            },
             spacer(),
-            pill(fmt(chips), G.C.CHIPS, 0.38),
-            spacer(),
-            pill('X', { 0.4, 0.4, 0.4, 1 }, 0.32),
-            spacer(),
-            pill(fmt(mult), G.C.MULT, 0.38),
+            {
+                n = G.UIT.C,
+                config = { align = "cm", padding = 0.05, colour = G.C.BLACK, r = 0.1 },
+                nodes = {
+                    {
+                        n = G.UIT.C,
+                        config = { align = "cr", padding = 0.01, r = 0.1, colour = G.C.CHIPS, minw = 1.1 },
+                        nodes = {
+                            { n = G.UIT.T, config = { text = fmt(chips), scale = 0.45, colour = G.C.UI.TEXT_LIGHT } },
+                            { n = G.UIT.B, config = { w = 0.08, h = 0.01 } }
+                        }
+                    },
+                    { n = G.UIT.T, config = { text = "X", scale = 0.45, colour = G.C.MULT } },
+                    {
+                        n = G.UIT.C,
+                        config = { align = "cl", padding = 0.01, r = 0.1, colour = G.C.MULT, minw = 1.1 },
+                        nodes = {
+                            { n = G.UIT.B, config = { w = 0.08, h = 0.01 } },
+                            { n = G.UIT.T, config = { text = fmt(mult), scale = 0.45, colour = G.C.UI.TEXT_LIGHT } }
+                        }
+                    }
+                }
+            }
         }
     end
     if view_mode == 'old' then
