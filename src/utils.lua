@@ -97,6 +97,18 @@ local function get_tooltip_colour(tooltip_key, fallback)
     return fallback
 end
 
+local pl_func_payload_counter = 0
+
+function PlayLog.store_func_payload(func_name, payload)
+    if type(func_name) ~= 'string' or func_name == '' then return nil end
+    PlayLog.temp = type(PlayLog.temp) == 'table' and PlayLog.temp or {}
+    PlayLog.temp.func_payloads = type(PlayLog.temp.func_payloads) == 'table' and PlayLog.temp.func_payloads or {}
+    pl_func_payload_counter = pl_func_payload_counter + 1
+    local payload_id = tostring(os.time()) .. '_' .. tostring(pl_func_payload_counter)
+    PlayLog.temp.func_payloads[payload_id] = copy_table and copy_table(payload) or payload
+    return func_name .. '@' .. payload_id
+end
+
 function PlayLog.parse_text(raw_text, loc_vars)
     local default_colour = copy_colour((G and G.C and G.C.UI and G.C.UI.TEXT_DARK) or { 0.08, 0.08, 0.08, 0.95 })
     local active_colour = copy_colour(default_colour)

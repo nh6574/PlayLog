@@ -120,7 +120,7 @@ local function pl_draw_rich_segments(segments, x, y, max_x, mouse_x, mouse_y, li
                 if mouse_x >= draw_x and mouse_x <= (draw_x + token_w)
                     and mouse_y >= draw_y and mouse_y <= (draw_y + seg_h) then
                     hovered_tooltip = {
-                        key = seg_tooltip,
+                        key = seg_tooltip or ("__func:" .. tostring(seg_func or "unknown")),
                         func = seg_func,
                         x = draw_x,
                         y = draw_y,
@@ -223,17 +223,126 @@ function PlayLog.create_tooltip_UIBox(nodes, func)
     return ret
 end
 
+local function pl_build_func_tooltip_definition(hovered)
+    if not hovered or not hovered.func then return nil end
+    local function_name = tostring(hovered.func or "")
+    if function_name == "" then return nil end
+    local callback_payload = hovered.func_payload
+    if callback_payload == nil then
+        local base_name, payload_id = function_name:match('^([^@]+)@(.+)$')
+        if base_name and payload_id then
+            function_name = base_name
+            if PlayLog.temp and PlayLog.temp.func_payloads and PlayLog.temp.func_payloads[payload_id] ~= nil then
+                callback_payload = copy_table and copy_table(PlayLog.temp.func_payloads[payload_id])
+                    or PlayLog.temp.func_payloads[payload_id]
+            end
+        end
+    end
+    local callback = PlayLog.FUNCS and PlayLog.FUNCS[function_name]
+    local callback_result = nil
+    if type(callback) == 'function' then
+        local ok, res = pcall(callback, callback_payload, hovered)
+        if ok then callback_result = res end
+    end
+    if type(callback_result) == 'table' and callback_result.definition then
+        return callback_result.definition
+    end
+    if callback_result and type(callback_result) ~= 'string' and type(callback_result) ~= 'table' then
+        callback_result = tostring(callback_result)
+    end
+    local title_text = tostring((type(callback_result) == 'table' and callback_result.title) or function_name)
+    local title_rows = {
+        {
+            {
+                n = G.UIT.T,
+                config = {
+                    text = title_text,
+                    scale = 0.52,
+                    colour = G.C.WHITE,
+                    shadow = true,
+                    align = 'cm',
+                }
+            }
+        }
+    }
+    local body_rows = {}
+    if type(callback_result) == 'string' then
+        body_rows[#body_rows + 1] = {
+            {
+                n = G.UIT.T,
+                config = {
+                    text = callback_result,
+                    scale = 0.44,
+                    colour = G.C.UI.TEXT_LIGHT,
+                    shadow = true,
+                    align = 'cm',
+                }
+            }
+        }
+    elseif type(callback_result) == 'table' and type(callback_result.text) == 'string' then
+        body_rows[#body_rows + 1] = {
+            {
+                n = G.UIT.T,
+                config = {
+                    text = callback_result.text,
+                    scale = 0.44,
+                    colour = G.C.UI.TEXT_LIGHT,
+                    shadow = true,
+                    align = 'cm',
+                }
+            }
+        }
+    elseif type(callback_result) == 'table' and type(callback_result.rows) == 'table' then
+        body_rows = callback_result.rows
+    else
+        body_rows[#body_rows + 1] = {
+            {
+                n = G.UIT.T,
+                config = {
+                    text = "No tooltip UI returned",
+                    scale = 0.44,
+                    colour = G.C.UI.TEXT_LIGHT,
+                    shadow = true,
+                    align = 'cm',
+                }
+            }
+        }
+    end
+    local body_node = desc_from_rows(body_rows)
+    local card_nodes = {
+        desc_from_rows(title_rows, true),
+        body_node,
+    }
+    return PlayLog.create_tooltip_UIBox({
+        {
+            n = G.UIT.C,
+            config = { align = "cm", colour = G.C.CLEAR },
+            nodes = {
+                {
+                    n = G.UIT.R,
+                    config = { padding = 0.05, r = 0.12, colour = G.C.CLEAR, emboss = 0.07 },
+                    nodes = {
+                        {
+                            n = G.UIT.R,
+                            config = { align = "cm", padding = 0.07, r = 0.1, colour = G.C.CLEAR },
+                            nodes = card_nodes
+                        }
+                    }
+                }
+            }
+        }
+    })
+end
+
 local function pl_draw_hover_tooltip(hovered)
     if not hovered or not (hovered.key or hovered.func) then
         pl_remove_tooltip_card()
         return
     end
-
-    local is_func = not hovered.key and not not hovered.func
-
-    local center = G.P_CENTERS and (is_func and G.P_CENTERS.j_joker or G.P_CENTERS[hovered.key])
+    local is_func = hovered.func ~= nil and tostring(hovered.func) ~= ""
+    local center = G.P_CENTERS and ((is_func and (G.P_CENTERS.j_joker or G.P_CENTERS.c_base)) or G.P_CENTERS[hovered.key])
     local is_seal = false
-    if not center and G and G.P_SEALS then
+    if not is_func and not center and G and G.P_SEALS then
         local seal = G.P_SEALS[hovered.key]
             or (SMODS and SMODS.Seal and G.P_SEALS[SMODS.Seal.badge_to_key[hovered.key] or ''])
         if seal then
@@ -241,21 +350,21 @@ local function pl_draw_hover_tooltip(hovered)
         end
     end
     local is_tag = false
-    if not center then
+    if not is_func and not center then
         local tag = G.P_TAGS[hovered.key]
         if tag then
             center = tag; is_tag = true
         end
     end
     local is_blind = false
-    if not center then
+    if not is_func and not center then
         local blind = G.P_BLINDS[hovered.key]
         if blind then
             center = blind; is_blind = true
         end
     end
     local is_stake = false
-    if not center then
+    if not is_func and not center then
         local stake = G.P_STAKES[hovered.key]
         if stake then
             center = stake; is_stake = true
@@ -320,10 +429,11 @@ local function pl_draw_hover_tooltip(hovered)
     local card_center = (is_seal or is_blind or is_stake or is_tag or center.set == 'Edition')
         and (G.P_CENTERS.j_joker or G.P_CENTERS.c_base)
         or center
-    if not pl_tooltip_card or pl_tooltip_card._pl_key ~= hovered.key then
+    local hover_identity = hovered.key or ("__func:" .. tostring(hovered.func or ""))
+    if not pl_tooltip_card or pl_tooltip_card._pl_key ~= hover_identity then
         pl_remove_tooltip_card()
         pl_tooltip_card = Card(x + card_w / 2, y + card_h / 2, G.CARD_W * 0.55, G.CARD_H * 0.55, nil, card_center, nil)
-        pl_tooltip_card._pl_key = hovered.key
+        pl_tooltip_card._pl_key = hover_identity
         pl_tooltip_card.no_graveyard = true
         pl_tooltip_card.states = pl_tooltip_card.states or {}
         pl_tooltip_card.states.hover = pl_tooltip_card.states.hover or {}
@@ -465,8 +575,13 @@ local function pl_draw_hover_tooltip(hovered)
             badges.mod_set = nil
         end
 
+        local func_definition = nil
+        if is_func then
+            func_definition = pl_build_func_tooltip_definition(hovered)
+        end
+
         pl_tooltip_card.children.playlog_box = UIBox {
-            definition = is_func and PlayLog.FUNCS[hovered.func]() or PlayLog.create_tooltip_UIBox({
+            definition = (is_func and func_definition) or PlayLog.create_tooltip_UIBox({
                 {
                     n = G.UIT.C,
                     config = { align = "cm", colour = G.C.CLEAR },

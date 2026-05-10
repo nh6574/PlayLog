@@ -281,7 +281,12 @@ PlayLog.LogType {
 PlayLog.LogType {
     key = "hand_level_up",
     get_message = function(self, args)
-        return PlayLog.localize("hand_level_up", { localize(args.hand, 'poker_hands'), args.old_level, args.new_level })
+        local old_hover = args.old_level_func or 'hand_level_snapshot_old'
+        local new_hover = args.new_level_func or 'hand_level_snapshot_new'
+        local arrow_hover = args.arrow_func or 'hand_level_snapshot_arrow'
+        return "{C:attention}" .. localize(args.hand, 'poker_hands') .. "{} leveled up lvl.{F:" .. old_hover .. "}{C:red}"
+            .. tostring(args.old_level or "?") .. "{}{} {F:" .. arrow_hover .. "}->{} {F:" .. new_hover .. "}{C:red}"
+            .. tostring(args.new_level or "?") .. "{}{}"
     end
 }
 
