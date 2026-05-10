@@ -101,11 +101,11 @@ local pl_func_payload_counter = 0
 
 function PlayLog.store_func_payload(func_name, payload)
     if type(func_name) ~= 'string' or func_name == '' then return nil end
-    PlayLog.temp = type(PlayLog.temp) == 'table' and PlayLog.temp or {}
-    PlayLog.temp.func_payloads = type(PlayLog.temp.func_payloads) == 'table' and PlayLog.temp.func_payloads or {}
+    G.GAME = G.GAME or {}
+    G.GAME.playlog_func_payloads = type(G.GAME.playlog_func_payloads) == 'table' and G.GAME.playlog_func_payloads or {}
     pl_func_payload_counter = pl_func_payload_counter + 1
     local payload_id = tostring(os.time()) .. '_' .. tostring(pl_func_payload_counter)
-    PlayLog.temp.func_payloads[payload_id] = copy_table and copy_table(payload) or payload
+    G.GAME.playlog_func_payloads[payload_id] = copy_table and copy_table(payload) or payload
     return func_name .. '@' .. payload_id
 end
 

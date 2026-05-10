@@ -232,9 +232,9 @@ local function pl_build_func_tooltip_definition(hovered)
         local base_name, payload_id = function_name:match('^([^@]+)@(.+)$')
         if base_name and payload_id then
             function_name = base_name
-            if PlayLog.temp and PlayLog.temp.func_payloads and PlayLog.temp.func_payloads[payload_id] ~= nil then
-                callback_payload = copy_table and copy_table(PlayLog.temp.func_payloads[payload_id])
-                    or PlayLog.temp.func_payloads[payload_id]
+            if G.GAME and G.GAME.playlog_func_payloads and G.GAME.playlog_func_payloads[payload_id] ~= nil then
+                callback_payload = copy_table and copy_table(G.GAME.playlog_func_payloads[payload_id])
+                    or G.GAME.playlog_func_payloads[payload_id]
             end
         end
     end
