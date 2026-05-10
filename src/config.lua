@@ -58,6 +58,10 @@ end
 if not PlayLog.config.panel_bg then
     pl_apply_theme(PLAYLOG_THEMES[1])
 end
+if type(PlayLog.config.time_format_index) ~= 'number' then
+    PlayLog.config.time_format_index = 4
+    pl_save_config()
+end
 
 --Color conversion helpers
 function pl_hex_to_rgb(hex)

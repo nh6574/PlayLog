@@ -67,6 +67,47 @@ local function pl_snap_panel_height(panel_h, min_h, max_h)
     return pl_clamp(rows * PLAYLOG_ROW_HEIGHT + chrome_h, min_h, max_h)
 end
 
+local function pl_get_func_payload(func_ref)
+    if type(func_ref) ~= 'string' or func_ref == '' then return nil, nil end
+    local base_name, payload_id = func_ref:match('^([^@]+)@(.+)$')
+    if not base_name then
+        return func_ref, nil
+    end
+    local payloads = G and G.GAME and G.GAME.playlog_func_payloads
+    local payload = payloads and payloads[payload_id] or nil
+    return base_name, payload
+end
+
+local function pl_get_render_segment_text(seg)
+    if type(seg) ~= 'table' then return tostring(seg or '') end
+    local seg_text = tostring(seg.text or '')
+    local func_name, payload = pl_get_func_payload(seg.func)
+    if func_name ~= 'playlog_time' then
+        return seg_text
+    end
+    local entry_time = type(payload) == 'table' and tonumber(payload.entry_time) or nil
+    if not entry_time then
+        return seg_text
+    end
+    local formats = PlayLog.CLOCK_FORMATS or {}
+    if #formats < 1 then
+        return seg_text
+    end
+    local idx = math.floor(tonumber(PlayLog.config and PlayLog.config.time_format_index) or 4)
+    if idx < 1 or idx > #formats then
+        idx = math.min(4, #formats)
+    end
+    local selected = formats[idx] or formats[1]
+    if not selected then
+        return seg_text
+    end
+    return PlayLog.get_formatted_time({
+        time = entry_time,
+        format_string = selected.format_string,
+        no_leading_zero = selected.no_leading_zero,
+    })
+end
+
 local function pl_draw_rich_segments(segments, x, y, max_x, mouse_x, mouse_y, line_step)
     if not segments then return nil, 1 end
     local draw_x = x
@@ -142,7 +183,7 @@ local function pl_draw_rich_segments(segments, x, y, max_x, mouse_x, mouse_y, li
     local def_r, def_g, def_b, def_a = pl_col('header_text', 0.88, 0.88, 0.88, 1)
     for i = 1, #segments do
         local seg = segments[i]
-        local seg_text = seg.text or ""
+        local seg_text = pl_get_render_segment_text(seg)
         if seg_text ~= "" then
             local c = seg.colour or { def_r, def_g, def_b, def_a }
             local seg_scale = tonumber(seg.scale) or 1
@@ -276,7 +317,7 @@ local function pl_build_func_tooltip_definition(hovered)
     local bg_colour = nil
     if is_table and type(callback_result.text) == 'string' then
         local txt_scale = tonumber(callback_result.scale) or 0.44
-        local txt_colour = callback_result.colour or G.C.UI.TEXT_LIGHT
+        local txt_colour = callback_result.colour or G.C.UI.TEXT_DARK
         bg_colour = callback_result.background_colour or callback_result.bg_colour
         local txt_shadow = callback_result.shadow ~= false
         local txt_node = {
@@ -299,7 +340,7 @@ local function pl_build_func_tooltip_definition(hovered)
                 config = {
                     text = "No tooltip UI returned",
                     scale = 0.44,
-                    colour = G.C.UI.TEXT_LIGHT,
+                    colour = G.C.UI.TEXT_DARK,
                     shadow = true,
                     align = 'cm',
                 }
@@ -778,7 +819,7 @@ local function pl_measure_rich_segments(segments, max_width)
 
     for i = 1, #segments do
         local seg = segments[i]
-        local seg_text = seg.text or ""
+        local seg_text = pl_get_render_segment_text(seg)
         if seg_text ~= "" then
             local seg_scale = tonumber(seg.scale) or 1
             local start_idx = 1
@@ -813,8 +854,10 @@ end
 local function pl_get_entry_lines(entry, layout)
     if not entry then return 1 end
     local wrap_w = math.max(1, (layout and layout.content_w or 1) - 10)
-    if entry._pl_line_w ~= wrap_w then
+    local fmt_idx = math.floor(tonumber(PlayLog.config and PlayLog.config.time_format_index) or 4)
+    if entry._pl_line_w ~= wrap_w or entry._pl_time_fmt_idx ~= fmt_idx then
         entry._pl_line_w = wrap_w
+        entry._pl_time_fmt_idx = fmt_idx
         entry._pl_lines = pl_measure_rich_segments(entry.segments, wrap_w)
     end
     return entry._pl_lines or 1
@@ -839,17 +882,59 @@ local function pl_get_max_shift(layout)
     return math.max(pl_get_total_lines(layout) - pl_get_visible_rows(layout), 0)
 end
 
+local function pl_get_time_format_index()
+    local formats = PlayLog.CLOCK_FORMATS or {}
+    if #formats == 0 then return 1 end
+    local idx = math.floor(tonumber(PlayLog.config and PlayLog.config.time_format_index) or 4)
+    if idx < 1 or idx > #formats then
+        idx = math.min(4, #formats)
+    end
+    return idx
+end
+
+local function pl_cycle_time_format(delta)
+    local formats = PlayLog.CLOCK_FORMATS or {}
+    if #formats == 0 then return end
+    local idx = pl_get_time_format_index()
+    idx = ((idx - 1 + (delta or 1)) % #formats) + 1
+    PlayLog.config.time_format_index = idx
+    pl_save_config()
+end
+
+local function pl_get_display_time_for_entry(entry_time)
+    local formats = PlayLog.CLOCK_FORMATS or {}
+    local selected = formats[pl_get_time_format_index()] or formats[1]
+    if not selected then
+        return PlayLog.get_formatted_time({ time = entry_time, format_string = '%I:%M:%S %p', no_leading_zero = true })
+    end
+    return PlayLog.get_formatted_time({
+        time = entry_time,
+        format_string = selected.format_string,
+        no_leading_zero = selected.no_leading_zero,
+    })
+end
+
+local function pl_get_full_date_for_entry(entry_time)
+    return PlayLog.get_formatted_time({ time = entry_time, format_string = '%Y/%m/%d %H:%M:%S' })
+end
+
 function pl_enqueue_rich_log(raw_body)
     G.playlog_pending_entries = G.playlog_pending_entries or {}
     G.playlog_plain_entries = G.playlog_plain_entries or {}
-    local time_text = PlayLog.get_formatted_time(PlayLog.CLOCK_FORMATS[4])
+    local entry_time = os.time()
+    local time_text = pl_get_display_time_for_entry(entry_time)
+    local full_time_text = pl_get_full_date_for_entry(entry_time)
+    local time_payload_ref = PlayLog.store_func_payload('playlog_time', {
+        full_date = full_time_text,
+        entry_time = entry_time,
+    }) or 'playlog_time'
     local message_text = raw_body
     local loc_vars = nil
     if type(raw_body) == 'table' then
         message_text = raw_body.text or raw_body.message or raw_body.raw_text or ""
         loc_vars = raw_body.loc_vars or raw_body.vars
     end
-    local raw_text = "{F:playlog_time,C:inactive}" .. time_text .. "{} " .. tostring(message_text or "")
+    local raw_text = "{F:" .. tostring(time_payload_ref) .. ",C:inactive}" .. time_text .. "{} " .. tostring(message_text or "")
     local segments = PlayLog.parse_text(raw_text, loc_vars)
     local plain_line = pl_plain_from_segments(segments)
     G.playlog_plain_entries[#G.playlog_plain_entries + 1] = plain_line
@@ -948,9 +1033,26 @@ local function pl_draw_config_content(layout)
             love.graphics.circle("fill", bx + btn_w - 10, by + btn_h - 10, 4)
         end
     end
+    local time_cfg_y = cy + 26 + math.ceil(#PLAYLOG_THEMES / 2) * (btn_h + gap) + 8
+    local time_btn_w = cw
+    local time_btn_h = 30
+    local time_btn_hov = pl_point_in_rect(mx, my, cx, time_cfg_y, time_btn_w, time_btn_h)
+    local selected_idx = pl_get_time_format_index()
+    local selected_fmt = (PlayLog.CLOCK_FORMATS and PlayLog.CLOCK_FORMATS[selected_idx]) or nil
+    local sample_text = selected_fmt and PlayLog.get_formatted_time(selected_fmt) or "--:--"
+    love.graphics.setColor(0, 0, 0, 0.35)
+    love.graphics.rectangle("fill", cx, time_cfg_y, time_btn_w, time_btn_h, 4, 4)
+    local br1, br2, br3 = pl_col('border', 0.95, 0.73, 0.25, 1)
+    love.graphics.setColor(br1, br2, br3, time_btn_hov and 0.75 or 0.35)
+    love.graphics.rectangle("line", cx, time_cfg_y, time_btn_w, time_btn_h, 4, 4)
+    love.graphics.setColor(0.65, 0.65, 0.65, 1)
+    love.graphics.print("TIME FORMAT", cx + 8, time_cfg_y + 2, nil, 0.62, 0.62)
+    love.graphics.setColor(1, 1, 1, 0.82)
+    love.graphics.print("< " .. sample_text .. " >", cx + 8, time_cfg_y + 13, nil, 0.72, 0.72)
+    G.playlog_time_format_rect = { x = cx, y = time_cfg_y, w = time_btn_w, h = time_btn_h }
     --hex input section
     local rows = math.ceil(#PLAYLOG_THEMES / 2)
-    local hex_y = cy + 26 + rows * (btn_h + gap) + 10
+    local hex_y = cy + 26 + rows * (btn_h + gap) + 46
     love.graphics.setColor(pl_col('header_text', 0.95, 0.73, 0.25, 0.7))
     love.graphics.print("CUSTOM COLORS  (click swatch to open picker)", cx, hex_y, nil, 0.68, 0.68)
     hex_y = hex_y + 18
@@ -1712,6 +1814,13 @@ function love.mousepressed(x, y, button, istouch, presses)
                     pl_picker_apply()
                 end
             else
+                if G.playlog_time_format_rect and pl_point_in_rect(x, y,
+                    G.playlog_time_format_rect.x,
+                    G.playlog_time_format_rect.y,
+                    G.playlog_time_format_rect.w,
+                    G.playlog_time_format_rect.h) then
+                    pl_cycle_time_format(1)
+                end
                 --swatch opens picker
                 if G.playlog_hex_rects then
                     for i, rect in ipairs(G.playlog_hex_rects) do

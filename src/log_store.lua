@@ -250,7 +250,10 @@ function LogStore.prepare_start_run()
     if not G.GAME.playlog_log_path then
         G.GAME.playlog_log_path = PLAYLOG_RUNS_DIR .. "/" .. tostring(G.GAME.playlog_run_id) .. ".txt"
     end
-    if (type(G.GAME.playlog_segment_payloads) ~= 'table' or #G.GAME.playlog_segment_payloads == 0)
+    local has_payload_table = type(G.GAME.playlog_segment_payloads) == 'table'
+    local payload_count = has_payload_table and #G.GAME.playlog_segment_payloads or 0
+    local saved_count = type(G.playlog_saved_segments) == 'table' and #G.playlog_saved_segments or 0
+    if (not has_payload_table or payload_count == 0 or payload_count ~= saved_count)
         and type(G.playlog_saved_segments) == 'table'
         and #G.playlog_saved_segments > 0
         and G.playlog_last_log_path == G.GAME.playlog_log_path then
