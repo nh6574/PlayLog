@@ -1,0 +1,22 @@
+[manifest]
+version = "0.1.0"
+dump_lua = true
+priority = 0
+
+# Ceremonial Dagger
+[[patches]]
+[patches.pattern]
+target = "card.lua"
+pattern = '''
+sliced_card:start_dissolve({HEX("57ecab")}, nil, 1.6)
+'''
+position = 'after'
+match_indent = true
+payload = '''
+G.E_MANAGER:add_event(Event({
+    func = function()
+        PlayLog.log{ type = "destroys", card = self, destroyed = { sliced_card } }
+        return true
+    end
+}))
+'''

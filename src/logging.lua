@@ -420,14 +420,13 @@ SMODS.current_mod.calculate = function(self, context)
 
     if context.money_altered then
         local amount = context.amount
-        local dollars = G.GAME.dollars
         -- TODO: fix weird case with calling ease_dollars multiple times (the tooth...)
         if amount ~= 0 then
             G.E_MANAGER:add_event(Event({
                 func = function()
                     G.E_MANAGER:add_event(Event({
                         func = function()
-                            PlayLog.log { type = "money_altered", previous = dollars, current = dollars + amount }
+                            PlayLog.log { type = "money_altered", previous = G.GAME.dollars - amount, current = G.GAME.dollars }
                             return true
                         end
                     }))

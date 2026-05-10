@@ -427,6 +427,76 @@ local function pl_build_func_tooltip_definition(hovered)
     })
 end
 
+local function pl_get_card_badges(card)
+    local badges_to_add = {}
+    local card_set = card.ability.set or "None"
+    if card_set == "Back" then return {} end
+    if (card_set ~= 'Locked' and card_set ~= 'Undiscovered' and card_set ~= 'Default') or card.debuff then
+        badges_to_add.card_type = card_set
+    end
+    if card.ability.set == 'Joker' and card.bypass_discovery_ui then
+        badges_to_add.force_rarity = true
+    end
+    if card.edition then
+        if card.edition.card_limit then
+            badges_to_add[#badges_to_add + 1] = SMODS.Edition.get_card_limit_key(card)
+        else
+            badges_to_add[#badges_to_add + 1] = (card.edition.type == 'holo' and 'holographic' or card.edition.type)
+        end
+    end
+    if card.seal then badges_to_add[#badges_to_add + 1] = string.lower(card.seal) .. '_seal' end
+    if card.ability.eternal then badges_to_add[#badges_to_add + 1] = 'eternal' end
+    if card.ability.perishable then
+        badges_to_add[#badges_to_add + 1] = 'perishable'
+    end
+    if card.ability.rental then badges_to_add[#badges_to_add + 1] = 'rental' end
+    if card.pinned then badges_to_add[#badges_to_add + 1] = 'pinned_left' end
+    for k, v in ipairs(SMODS.Sticker.obj_buffer) do
+        if card.ability[v] and not SMODS.Stickers[v].hide_badge then
+            badges_to_add[#badges_to_add + 1] = v
+        end
+    end
+    local debuffed = card.debuff
+    local card_type_colour = get_type_colour(card.config.center or card.config, card)
+    local card_type_text_colour = SMODS.get_card_type_text_colour(card_set, card.config.center or card.config, card)
+    local card_type = localize('k_' .. string.lower(card_set))
+    if card_set == 'Joker' or (badges_to_add and badges_to_add.force_rarity) then
+        card_type = SMODS.Rarity:get_rarity_badge(card.config.center.rarity)
+    end
+    if card_set == 'Enhanced' then card_type = localize { type = 'name_text', key = card.config.center.key, set = 'Enhanced' } end
+    card_type = (debuffed and card_set ~= 'Enhanced') and localize('k_debuffed') or card_type
+
+    local badges = {}
+    local obj = card.config.center
+    if badges_to_add.card_type or badges_to_add.force_rarity then
+        if obj and (obj.set_card_type_badge or obj.type and obj.type.set_card_type_badge) then
+            if obj.type and type(obj.type.set_card_type_badge) == 'function' then
+                obj.type:set_card_type_badge(obj, card, badges)
+            end
+            if type(obj.set_card_type_badge) == 'function' then
+                obj:set_card_type_badge(card, badges)
+            end
+        else
+            badges[#badges + 1] = create_badge(
+                ((card.ability.name == 'Pluto' or card.ability.name == 'Ceres' or card.ability.name == 'Eris') and localize('k_dwarf_planet')) or
+                (card.ability.name == 'Planet X' and localize('k_planet_q') or card_type), card_type_colour,
+                card_type_text_colour, 1.2)
+        end
+    end
+    if obj and obj.set_badges and type(obj.set_badges) == 'function' then
+        obj:set_badges(card, badges)
+    end
+    if badges_to_add then
+        for k, v in ipairs(badges_to_add) do
+            if v:sub(v:len() - 14) == '_SMODS_INTERNAL' then
+                if v:sub(1, 9) == 'negative_' then v = 'negative' else v = v:sub(1, v:find('_', v:find('_') + 1) - 1) end
+            end
+            badges[#badges + 1] = create_badge(localize(v, "labels"), get_badge_colour(v), SMODS.get_badge_text_colour(v))
+        end
+    end
+    return badges
+end
+
 local function pl_draw_hover_tooltip(hovered)
     if not hovered or not (hovered.key or hovered.func) then
         pl_remove_tooltip_card()
@@ -434,8 +504,10 @@ local function pl_draw_hover_tooltip(hovered)
     end
     local is_func = hovered.func ~= nil and tostring(hovered.func) ~= ""
     local card_snapshot = not is_func and pl_get_card_snapshot_payload(hovered.key) or nil
-    local snapshot_center = card_snapshot and G and G.P_CENTERS and G.P_CENTERS[card_snapshot.center_key or 'c_base'] or nil
-    local center = G.P_CENTERS and ((is_func and (G.P_CENTERS.j_joker or G.P_CENTERS.c_base)) or G.P_CENTERS[hovered.key])
+    local snapshot_center = card_snapshot and G and G.P_CENTERS and G.P_CENTERS[card_snapshot.center_key or 'c_base'] or
+        nil
+    local center = G.P_CENTERS and
+        ((is_func and (G.P_CENTERS.j_joker or G.P_CENTERS.c_base)) or G.P_CENTERS[hovered.key])
     if not center and snapshot_center then
         center = snapshot_center
     end
@@ -696,8 +768,16 @@ local function pl_draw_hover_tooltip(hovered)
             end
 
 
-            local badges = {}
+            local badges = (display_card.ability or {}).set and pl_get_card_badges(display_card) or {}
             SMODS.create_mod_badges(center, badges)
+            if display_card.base then
+                SMODS.create_mod_badges(SMODS.Ranks[display_card.base.value], badges)
+                SMODS.create_mod_badges(SMODS.Suits[display_card.base.suit], badges)
+            end
+            if display_card.config and display_card.config.tag then
+                SMODS.create_mod_badges(SMODS.Tags[display_card.config.tag.key], badges)
+            end
+
             if badges[1] then
                 table.insert(card_nodes, {
                     n = G.UIT.R,
@@ -1026,7 +1106,8 @@ function pl_enqueue_rich_log(raw_body)
         message_text = raw_body.text or raw_body.message or raw_body.raw_text or ""
         loc_vars = raw_body.loc_vars or raw_body.vars
     end
-    local raw_text = "{F:" .. tostring(time_payload_ref) .. ",C:inactive}" .. time_text .. "{} " .. tostring(message_text or "")
+    local raw_text = "{F:" ..
+        tostring(time_payload_ref) .. ",C:inactive}" .. time_text .. "{} " .. tostring(message_text or "")
     local segments = PlayLog.parse_text(raw_text, loc_vars)
     local plain_line = pl_plain_from_segments(segments)
     G.playlog_plain_entries[#G.playlog_plain_entries + 1] = plain_line
@@ -1518,9 +1599,9 @@ PlayLog.FUNCS['pl_test_rows'] = function(payload, hovered)
     return {
         title = "Rows Return",
         rows = {
-            { { n = G.UIT.T, config = { text = "Row 1: chips", scale = 0.44, colour = G.C.CHIPS,  shadow = true, align = 'cm' } } },
-            { { n = G.UIT.T, config = { text = "Row 2: mult",  scale = 0.10, colour = G.C.MULT,   shadow = true, align = 'cm' } } },
-            { { n = G.UIT.T, config = { text = "Row 3: money", scale = 0.80, colour = G.C.MONEY,  shadow = true, align = 'cm' } } },
+            { { n = G.UIT.T, config = { text = "Row 1: chips", scale = 0.44, colour = G.C.CHIPS, shadow = true, align = 'cm' } } },
+            { { n = G.UIT.T, config = { text = "Row 2: mult", scale = 0.10, colour = G.C.MULT, shadow = true, align = 'cm' } } },
+            { { n = G.UIT.T, config = { text = "Row 3: money", scale = 0.80, colour = G.C.MONEY, shadow = true, align = 'cm' } } },
         }
     }
 end
@@ -1528,8 +1609,8 @@ end
 PlayLog.FUNCS['pl_test_payload'] = function(payload, hovered)
     if not payload then return { title = false, text = "no payload" } end
     return {
-        title = "Payload Demo",
-        text  = "chips: " .. tostring(payload.chips) .. "  mult: " .. tostring(payload.mult),
+        title  = "Payload Demo",
+        text   = "chips: " .. tostring(payload.chips) .. "  mult: " .. tostring(payload.mult),
         colour = G.C.CHIPS,
     }
 end
@@ -1656,23 +1737,23 @@ G.FUNCS.playlog_open_log = function(e)
             }
         }
     })
-        --more func-y tests
-        pl_enqueue_rich_log("{F:pl_test_string}[FUNC string]{}")
-        pl_enqueue_rich_log("{F:pl_test_text_only}[FUNC text only]{}")
-        pl_enqueue_rich_log("{F:pl_test_custom_title}[FUNC custom title]{}")
-        pl_enqueue_rich_log("{F:pl_test_no_title}[FUNC no title]{}")
-        pl_enqueue_rich_log("{F:pl_test_title_colour}[FUNC title colour]{}")
-        pl_enqueue_rich_log("{F:pl_test_title_scale}[FUNC title scale]{}")
-        pl_enqueue_rich_log("{F:pl_test_body_colour}[FUNC body colour]{}")
-        pl_enqueue_rich_log("{F:pl_test_body_bg}[FUNC body bg]{}")
-        pl_enqueue_rich_log("{F:pl_test_body_scale}[FUNC body scale]{}")
-        pl_enqueue_rich_log("{F:pl_test_no_shadow}[FUNC no shadow]{}")
-        pl_enqueue_rich_log("{F:pl_test_all_options}[FUNC all options]{}")
-        pl_enqueue_rich_log("{F:pl_test_rows}[FUNC rows]{}")
-        local payload_ref = PlayLog.store_func_payload('pl_test_payload', { chips = 150, mult = 8 })
-        if payload_ref then
-            pl_enqueue_rich_log("{F:" .. payload_ref .. "}[FUNC payload]{}")
-        end
+    --more func-y tests
+    pl_enqueue_rich_log("{F:pl_test_string}[FUNC string]{}")
+    pl_enqueue_rich_log("{F:pl_test_text_only}[FUNC text only]{}")
+    pl_enqueue_rich_log("{F:pl_test_custom_title}[FUNC custom title]{}")
+    pl_enqueue_rich_log("{F:pl_test_no_title}[FUNC no title]{}")
+    pl_enqueue_rich_log("{F:pl_test_title_colour}[FUNC title colour]{}")
+    pl_enqueue_rich_log("{F:pl_test_title_scale}[FUNC title scale]{}")
+    pl_enqueue_rich_log("{F:pl_test_body_colour}[FUNC body colour]{}")
+    pl_enqueue_rich_log("{F:pl_test_body_bg}[FUNC body bg]{}")
+    pl_enqueue_rich_log("{F:pl_test_body_scale}[FUNC body scale]{}")
+    pl_enqueue_rich_log("{F:pl_test_no_shadow}[FUNC no shadow]{}")
+    pl_enqueue_rich_log("{F:pl_test_all_options}[FUNC all options]{}")
+    pl_enqueue_rich_log("{F:pl_test_rows}[FUNC rows]{}")
+    local payload_ref = PlayLog.store_func_payload('pl_test_payload', { chips = 150, mult = 8 })
+    if payload_ref then
+        pl_enqueue_rich_log("{F:" .. payload_ref .. "}[FUNC payload]{}")
+    end
 end
 
 local game_start_run_ref = Game.start_run
@@ -1937,18 +2018,18 @@ function love.mousepressed(x, y, button, istouch, presses)
             else
                 local handled_cfg_click = false
                 if G.playlog_time_format_rect and pl_point_in_rect(x, y,
-                    G.playlog_time_format_rect.x,
-                    G.playlog_time_format_rect.y,
-                    G.playlog_time_format_rect.w,
-                    G.playlog_time_format_rect.h) then
+                        G.playlog_time_format_rect.x,
+                        G.playlog_time_format_rect.y,
+                        G.playlog_time_format_rect.w,
+                        G.playlog_time_format_rect.h) then
                     pl_cycle_time_format(1)
                     handled_cfg_click = true
                 end
                 if (not handled_cfg_click) and G.playlog_alpha_rect and pl_point_in_rect(x, y,
-                    G.playlog_alpha_rect.x,
-                    G.playlog_alpha_rect.y,
-                    G.playlog_alpha_rect.w,
-                    G.playlog_alpha_rect.h) then
+                        G.playlog_alpha_rect.x,
+                        G.playlog_alpha_rect.y,
+                        G.playlog_alpha_rect.w,
+                        G.playlog_alpha_rect.h) then
                     local ratio = pl_clamp((x - G.playlog_alpha_rect.x) / math.max(G.playlog_alpha_rect.w, 1), 0, 1)
                     PlayLog.config.panel_bg = PlayLog.config.panel_bg or { 0.10, 0.10, 0.17, 0.97 }
                     PlayLog.config.panel_bg[4] = 0.20 + ratio * 0.80
