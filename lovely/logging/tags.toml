@@ -1,0 +1,159 @@
+[manifest]
+version = "0.1.0"
+dump_lua = true
+priority = 0
+
+# store_joker_create
+[[patches]]
+[patches.pattern]
+target = "tag.lua"
+pattern = '''return card'''
+position = 'before'
+match_indent = true
+payload = '''
+if card then
+    G.E_MANAGER:add_event(Event({
+        func = function()
+            PlayLog.log{ type = "added_to_shop", card = self.key, cards = { card } }
+            return true
+        end
+    }))
+end
+'''
+
+# Rare Tag
+[[patches]]
+[patches.pattern]
+target = "tag.lua"
+pattern = '''self:nope()'''
+position = 'before'
+match_indent = true
+payload = '''
+G.E_MANAGER:add_event(Event({
+    func = function()
+        PlayLog.log{ type = "noped", card = self.key }
+        return true
+    end
+}))
+'''
+
+# Negative Tag, Foil Tag, Holographic Tag, Polychrome Tag
+[[patches]]
+[patches.pattern]
+target = "tag.lua"
+pattern = '''self:yep('+', G.C.DARK_EDITION,function() '''
+position = 'after'
+match_indent = true
+payload = '''
+G.E_MANAGER:add_event(Event({
+    func = function()
+        local playlog_tag = self.key
+        local edition = "e_foil"
+        if playlog_tag == "tag_negative" then edition = "e_negative"
+        elseif playlog_tag == "tag_holo" then edition = "e_holo"
+        elseif playlog_tag == "tag_polychrome" then edition = "e_polychrome" end
+        PlayLog.log{ type = "applied", card = playlog_tag, applied = { _context.card }, edition = edition }
+        return true
+    end
+}))
+'''
+
+# Voucher Tag
+[[patches]]
+[patches.pattern]
+target = "tag.lua"
+pattern = '''G.shop_vouchers:emplace(card)'''
+position = 'after'
+match_indent = true
+payload = '''
+G.E_MANAGER:add_event(Event({
+    func = function()
+        PlayLog.log{ type = "added_to_shop", card = self.key, cards = { card } }
+        return true
+    end
+}))
+'''
+
+# Speed Tag
+[[patches]]
+[patches.pattern]
+target = "tag.lua"
+pattern = "ease_dollars((G.GAME.skips or 0)*self.config.skip_bonus)"
+position = 'before'
+match_indent = true
+payload = '''
+local playlog_amount = (G.GAME.skips or 0)*self.config.skip_bonus
+if playlog_amount ~= 0 then
+    PlayLog.log{ type = "money", card = self.key, amount = playlog_amount }
+end
+'''
+
+# Garbage Tag
+[[patches]]
+[patches.pattern]
+target = "tag.lua"
+pattern = "ease_dollars((G.GAME.unused_discards or 0)*self.config.dollars_per_discard)"
+position = 'before'
+match_indent = true
+payload = '''
+local playlog_amount = (G.GAME.unused_discards or 0)*self.config.dollars_per_discard
+if playlog_amount ~= 0 then
+    PlayLog.log{ type = "money", card = self.key, amount = playlog_amount }
+end
+'''
+
+# Handy Tag
+[[patches]]
+[patches.pattern]
+target = "tag.lua"
+pattern = "ease_dollars((G.GAME.hands_played or 0)*self.config.dollars_per_hand)"
+position = 'before'
+match_indent = true
+payload = '''
+local playlog_amount = (G.GAME.hands_played or 0)*self.config.dollars_per_hand
+if playlog_amount ~= 0 then
+    PlayLog.log{ type = "money", card = self.key, amount = playlog_amount }
+end
+'''
+
+# Economy Tag
+[[patches]]
+[patches.pattern]
+target = "tag.lua"
+pattern = "ease_dollars(math.min(self.config.max, math.max(0,G.GAME.dollars)), true)"
+position = 'before'
+match_indent = true
+payload = '''
+local playlog_amount = math.min(self.config.max, math.max(0,G.GAME.dollars))
+if playlog_amount ~= 0 then
+    PlayLog.log{ type = "money", card = self.key, amount = playlog_amount }
+end
+'''
+
+# Top-Up Tag
+[[patches]]
+[patches.pattern]
+target = "tag.lua"
+pattern = '''
+for i = 1, self.config.spawn_jokers do
+    if G.jokers and #G.jokers.cards < G.jokers.config.card_limit then
+        local card = create_card('Joker', G.jokers, nil, 0, nil, nil, nil, 'top')
+        card:add_to_deck()
+        G.jokers:emplace(card)
+    end
+end
+'''
+position = 'at'
+match_indent = true
+payload = '''
+local playlog_cards = {}
+for i = 1, self.config.spawn_jokers do
+    if G.jokers and #G.jokers.cards < G.jokers.config.card_limit then
+        local card = create_card('Joker', G.jokers, nil, 0, nil, nil, nil, 'top')
+        card:add_to_deck()
+        G.jokers:emplace(card)
+        playlog_cards[#playlog_cards+1] = card
+    end
+end
+if #playlog_cards > 0 then PlayLog.log{ type = "creates", card = self, created = playlog_cards } end
+'''

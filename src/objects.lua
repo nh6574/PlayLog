@@ -206,6 +206,14 @@ PlayLog.LogType {
 }
 
 PlayLog.LogType {
+    key = "added_to_shop",
+    get_message = function(self, args)
+        return PlayLog.localize("added_to_shop",
+            { format_card(args.card), PlayLog.loc_list(format_card_list(args.cards, "attention")) })
+    end
+}
+
+PlayLog.LogType {
     key = "converts",
     get_message = function(self, args)
         local conversion

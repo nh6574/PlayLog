@@ -50,6 +50,7 @@ return {
             reroll_shop_into = "Rerolled into: #1#",
             added = "{C:attention}#1#{} added",
             added_to = "{C:attention}#1#{} added to {C:attention}#2#",
+            added_to_shop = "{C:attention}#1#{} added {C:attention}#2#{} to the {C:attention}shop{}",
             converts = "{C:attention}#1#{} turned #2# into {C:attention}#3#",
             converts_multiple = "{C:attention}#1#{} turned #2#",
             converts_individual = "#1# into {C:attention}#2#",
