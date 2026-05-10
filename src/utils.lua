@@ -34,6 +34,111 @@ local function copy_colour(colour)
     }
 end
 
+local function try_as_colour(value)
+    if type(value) ~= 'table' then return nil end
+    if tonumber(value[1]) and tonumber(value[2]) and tonumber(value[3]) then
+        return copy_colour(value)
+    end
+    return nil
+end
+
+local pl_func_payload_counter = 0
+local function pl_store_payload(prefix, payload)
+    if type(prefix) ~= 'string' or prefix == '' then return nil end
+    pl_func_payload_counter = pl_func_payload_counter + 1
+    local payload_id = tostring(os.time()) .. '_' .. tostring(pl_func_payload_counter)
+    G.GAME = G.GAME or {}
+    G.GAME.playlog_func_payloads = type(G.GAME.playlog_func_payloads) == 'table' and G.GAME.playlog_func_payloads or {}
+    G.GAME.playlog_func_payloads[payload_id] = copy_table and copy_table(payload) or payload
+    return prefix .. '@' .. payload_id
+end
+
+local function pl_extract_payload_id(ref, expected_prefix)
+    if type(ref) ~= 'string' or ref == '' then return nil end
+    local prefix, payload_id = ref:match('^([^@]+)@(.+)$')
+    if not prefix or not payload_id then return nil end
+    if expected_prefix and prefix ~= expected_prefix then return nil end
+    return payload_id, prefix
+end
+
+local function pl_get_payload(ref, expected_prefix)
+    local payload_id = pl_extract_payload_id(ref, expected_prefix)
+    if not payload_id then return nil end
+    local payloads = G and G.GAME and G.GAME.playlog_func_payloads
+    return payloads and payloads[payload_id] or nil
+end
+
+local function pl_get_card_front_key(card)
+    if type(card) ~= 'table' then return nil end
+    local direct_key = card.front_key or (card.config and (card.config.card_key or card.config.front_key))
+    if direct_key and G and G.P_CARDS and G.P_CARDS[direct_key] then
+        return direct_key
+    end
+    local front = card.config and (card.config.card or card.config.front)
+    if front and G and G.P_CARDS then
+        for front_key, front_value in pairs(G.P_CARDS) do
+            if front_value == front then
+                return front_key
+            end
+        end
+    end
+    return nil
+end
+
+local function pl_get_card_edition_key(card)
+    if type(card) ~= 'table' then return nil end
+    local edition = card.edition or (card.ability and card.ability.edition) or (card.config and card.config.edition)
+    if type(edition) == 'string' then
+        return edition
+    end
+    if type(edition) ~= 'table' then return nil end
+    if type(edition.key) == 'string' then return edition.key end
+    if edition.foil then return 'e_foil' end
+    if edition.holo then return 'e_holo' end
+    if edition.polychrome then return 'e_polychrome' end
+    if edition.negative then return 'e_negative' end
+    return nil
+end
+
+local function pl_get_card_seal_key(card)
+    if type(card) ~= 'table' then return nil end
+    local seal = card.seal or (card.ability and card.ability.seal) or (card.config and card.config.seal)
+    if type(seal) ~= 'string' or seal == '' then return nil end
+    if G and G.P_SEALS and G.P_SEALS[seal] then return seal end
+    if SMODS and SMODS.Seal and SMODS.Seal.badge_to_key and SMODS.Seal.badge_to_key[seal] then
+        return SMODS.Seal.badge_to_key[seal]
+    end
+    local lowered = seal:lower()
+    if G and G.P_SEALS and G.P_SEALS[lowered] then return lowered end
+    local with_suffix = lowered:find('_seal$', 1, false) and lowered or (lowered .. '_seal')
+    if G and G.P_SEALS and G.P_SEALS[with_suffix] then return with_suffix end
+    return nil
+end
+
+local function get_blind_runtime_colour(center, key)
+    local blind_key = tostring((center and center.key) or key or '')
+    local blind_key_lower = blind_key:lower()
+
+    if type(mix_colours) == 'function' and G and G.C and G.C.BLACK then
+        if blind_key_lower == 'bl_small' and G.C.BLUE then
+            return copy_colour(mix_colours(G.C.BLUE, G.C.BLACK, 0.6))
+        end
+        if blind_key_lower == 'bl_big' and G.C.ORANGE then
+            return copy_colour(mix_colours(G.C.ORANGE, G.C.BLACK, 0.6))
+        end
+    end
+    if center then
+        local boss_colour = try_as_colour(center.boss_colour)
+            or try_as_colour(center.boss_color)
+        if boss_colour then return boss_colour end
+
+        local from_center = try_as_colour(center.colour)
+            or try_as_colour(center.color)
+        if from_center then return from_center end
+    end
+    return nil
+end
+
 local function get_balatro_colour(tag, fallback)
     local key = tostring(tag or ""):gsub("^%s+", ""):gsub("%s+$", "")
     if key == "" then return fallback end
@@ -69,18 +174,54 @@ local function get_tooltip_colour(tooltip_key, fallback)
     if not tooltip_key then return fallback end
     local key = tostring(tooltip_key)
     local center = G and G.P_CENTERS and G.P_CENTERS[key]
+    local source_set = center and center.set or nil
     if not center and G and G.P_SEALS then
         local seal_key = key
         if SMODS and SMODS.Seal and SMODS.Seal.badge_to_key then
             seal_key = SMODS.Seal.badge_to_key[key] or key
         end
         center = G.P_SEALS[seal_key]
+        if center then source_set = 'Seal' end
+    end
+    if not center and G and G.P_BLINDS then
+        center = G.P_BLINDS[key]
+        if center then source_set = 'Blind' end
+    end
+    if not center and G and G.P_TAGS then
+        center = G.P_TAGS[key]
+        if center then source_set = 'Tag' end
+    end
+    if not center and G and G.P_STAKES then
+        center = G.P_STAKES[key]
+        if center then source_set = 'Stake' end
     end
     if center then
+        if source_set == 'Blind' then
+            local blind_colour = get_blind_runtime_colour(center, key)
+            if blind_colour then return blind_colour end
+        end
+        if type(center.colour) == 'table' then
+            return copy_colour(center.colour)
+        end
+        if type(center.color) == 'table' then
+            return copy_colour(center.color)
+        end
+        if type(center.boss_colour) == 'table' then
+            return copy_colour(center.boss_colour)
+        end
+        if type(center.boss_color) == 'table' then
+            return copy_colour(center.boss_color)
+        end
         if center.loc_colour then
             return copy_colour(center.loc_colour)
         end
-        local set_key = center.set
+        if center.key then
+            local by_center_key = get_balatro_colour(center.key, nil)
+            if by_center_key then return by_center_key end
+        end
+        local by_tooltip_key = get_balatro_colour(key, nil)
+        if by_tooltip_key then return by_tooltip_key end
+        local set_key = center.set or source_set
         if set_key and G and G.C and G.C.SECONDARY_SET and G.C.SECONDARY_SET[set_key] then
             return copy_colour(G.C.SECONDARY_SET[set_key])
         end
@@ -97,16 +238,27 @@ local function get_tooltip_colour(tooltip_key, fallback)
     return fallback
 end
 
-local pl_func_payload_counter = 0
-
 function PlayLog.store_func_payload(func_name, payload)
-    if type(func_name) ~= 'string' or func_name == '' then return nil end
-    pl_func_payload_counter = pl_func_payload_counter + 1
-    local payload_id = tostring(os.time()) .. '_' .. tostring(pl_func_payload_counter)
-    G.GAME = G.GAME or {}
-    G.GAME.playlog_func_payloads = type(G.GAME.playlog_func_payloads) == 'table' and G.GAME.playlog_func_payloads or {}
-    G.GAME.playlog_func_payloads[payload_id] = copy_table and copy_table(payload) or payload
-    return func_name .. '@' .. payload_id
+    return pl_store_payload(func_name, payload)
+end
+
+function PlayLog.store_card_tooltip_payload(card)
+    if type(card) ~= 'table' or not card.base then return nil end
+    local center = card.config and card.config.center or nil
+    local snapshot = {
+        center_key = center and center.key or 'c_base',
+        suit = card.base.suit,
+        value = card.base.value,
+        id = card.base.id,
+        front_key = pl_get_card_front_key(card),
+        edition_key = pl_get_card_edition_key(card),
+        seal_key = pl_get_card_seal_key(card),
+    }
+    return pl_store_payload('playlog_card_snapshot', snapshot)
+end
+
+function PlayLog.get_card_tooltip_payload(ref)
+    return pl_get_payload(ref, 'playlog_card_snapshot')
 end
 
 function PlayLog.parse_text(raw_text, loc_vars)
@@ -298,11 +450,14 @@ end
 ---@param suit string suit key
 ---@return string
 function PlayLog.localize_rank_of_suit(rank, suit)
-    return PlayLog.localize("rank_of_suit",
-        {
-            localize(rank, 'ranks'),
-            localize(suit, 'suits_plural'),
-        })
+    local rank_text = localize(rank, 'ranks')
+    local suit_text = localize(suit, 'suits_plural')
+    local full_text = PlayLog.localize("rank_of_suit", { rank_text, suit_text })
+    local suit_key = tostring(suit or ''):lower()
+    if suit_key ~= '' then
+        return "{C:" .. suit_key .. "}" .. tostring(full_text) .. "{}"
+    end
+    return full_text
 end
 
 ---Returns current deck and stake, and sleeve if available. Hook to add more modifiers

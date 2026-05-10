@@ -108,6 +108,58 @@ local function pl_get_render_segment_text(seg)
     })
 end
 
+local function pl_get_card_snapshot_payload(tooltip_key)
+    if not PlayLog.get_card_tooltip_payload then return nil end
+    return PlayLog.get_card_tooltip_payload(tooltip_key)
+end
+
+local function pl_get_card_front_from_snapshot(snapshot)
+    if type(snapshot) ~= 'table' or not G or not G.P_CARDS then return nil end
+    if snapshot.front_key and G.P_CARDS[snapshot.front_key] then
+        return G.P_CARDS[snapshot.front_key]
+    end
+    local snapshot_suit = tostring(snapshot.suit or '')
+    local snapshot_value = tostring(snapshot.value or '')
+    local snapshot_id = tonumber(snapshot.id)
+    for _, front in pairs(G.P_CARDS) do
+        if type(front) == 'table' then
+            local front_suit = tostring(front.suit or front.suit_nominal or '')
+            local front_value = tostring(front.value or front.rank or '')
+            local front_id = tonumber(front.id or front.nominal)
+            if snapshot_suit ~= '' and snapshot_value ~= '' and front_suit == snapshot_suit and front_value == snapshot_value then
+                return front
+            end
+            if snapshot_suit ~= '' and snapshot_id and front_suit == snapshot_suit and front_id == snapshot_id then
+                return front
+            end
+        end
+    end
+    return nil
+end
+
+local function pl_build_snapshot_display_card(snapshot)
+    if type(snapshot) ~= 'table' or not G or not G.P_CENTERS then return nil end
+    local center = G.P_CENTERS[snapshot.center_key or 'c_base'] or G.P_CENTERS.c_base
+    if not center then return nil end
+    local front = pl_get_card_front_from_snapshot(snapshot)
+    local ok, display_card = pcall(Card, 0, 0, G.CARD_W / 1.2, G.CARD_H / 1.2, front, center)
+    if not ok or not display_card then return nil end
+    display_card.no_ui = true
+    display_card.no_shadow = true
+    display_card.playing_card = true
+    display_card.base = display_card.base or {}
+    if snapshot.suit then display_card.base.suit = snapshot.suit end
+    if snapshot.value then display_card.base.value = snapshot.value end
+    if snapshot.id then display_card.base.id = snapshot.id end
+    if snapshot.edition_key and G.P_CENTERS[snapshot.edition_key] then
+        pcall(function() display_card:set_edition(snapshot.edition_key, true, true) end)
+    end
+    if snapshot.seal_key and G.P_SEALS and G.P_SEALS[snapshot.seal_key] then
+        pcall(function() display_card:set_seal(snapshot.seal_key, true, true) end)
+    end
+    return display_card, center
+end
+
 local function pl_draw_rich_segments(segments, x, y, max_x, mouse_x, mouse_y, line_step)
     if not segments then return nil, 1 end
     local draw_x = x
@@ -381,7 +433,12 @@ local function pl_draw_hover_tooltip(hovered)
         return
     end
     local is_func = hovered.func ~= nil and tostring(hovered.func) ~= ""
+    local card_snapshot = not is_func and pl_get_card_snapshot_payload(hovered.key) or nil
+    local snapshot_center = card_snapshot and G and G.P_CENTERS and G.P_CENTERS[card_snapshot.center_key or 'c_base'] or nil
     local center = G.P_CENTERS and ((is_func and (G.P_CENTERS.j_joker or G.P_CENTERS.c_base)) or G.P_CENTERS[hovered.key])
+    if not center and snapshot_center then
+        center = snapshot_center
+    end
     local is_seal = false
     if not is_func and not center and G and G.P_SEALS then
         local seal = G.P_SEALS[hovered.key]
@@ -500,6 +557,7 @@ local function pl_draw_hover_tooltip(hovered)
     end
     if not pl_tooltip_card.children.playlog_box then
         local display_card
+        local tooltip_source_card = pl_tooltip_card
         local name = {}
         local description = {}
         local target = {
@@ -518,9 +576,24 @@ local function pl_draw_hover_tooltip(hovered)
             _, display_card = tag:generate_UI()
             vars = tag:get_uibox_table(nil, true)
         end
+        if not display_card and card_snapshot then
+            local snapshot_card, snapshot_card_center = pl_build_snapshot_display_card(card_snapshot)
+            if snapshot_card then
+                display_card = snapshot_card
+                tooltip_source_card = snapshot_card
+                center = snapshot_card_center or center
+                target.key = center.key
+                target.set = center.set
+                vars, main_start, main_end = snapshot_card:generate_UIBox_ability_table(true)
+            end
+        end
+        local ui_card = tooltip_source_card
+        if ui_card == pl_tooltip_card and center.create_fake_card then
+            ui_card = center:create_fake_card()
+        end
         generate_card_ui(center, full_UI_table, vars,
             center.set or (is_seal and 'Seal'), {}, nil, main_start, main_end,
-            center.create_fake_card and center:create_fake_card() or pl_tooltip_card)
+            ui_card)
         PlayLog.no_info_queue = nil
 
         if center.set == "Back" then
@@ -531,6 +604,25 @@ local function pl_draw_hover_tooltip(hovered)
         end
 
         if type(full_UI_table.name) == "string" then full_UI_table.name = nil end
+
+        if card_snapshot and card_snapshot.suit and card_snapshot.value then
+            local suit_key = tostring(card_snapshot.suit or '')
+            local rank_text = localize(card_snapshot.value, 'ranks')
+            local suit_text = localize(card_snapshot.suit, 'suits_plural')
+            local full_name = PlayLog.localize('rank_of_suit', { rank_text, suit_text })
+            local suit_colour = G and G.C and G.C.SUITS and G.C.SUITS[suit_key]
+            full_UI_table.name = {
+                {
+                    n = G.UIT.T,
+                    config = {
+                        text = full_name,
+                        scale = 0.5,
+                        colour = suit_colour or G.C.WHITE,
+                        vert = false,
+                    }
+                }
+            }
+        end
 
         if not full_UI_table.name or type(full_UI_table.name) ~= 'table' then
             if is_seal then
@@ -1050,9 +1142,38 @@ local function pl_draw_config_content(layout)
     love.graphics.setColor(1, 1, 1, 0.82)
     love.graphics.print("< " .. sample_text .. " >", cx + 8, time_cfg_y + 13, nil, 0.72, 0.72)
     G.playlog_time_format_rect = { x = cx, y = time_cfg_y, w = time_btn_w, h = time_btn_h }
+    local alpha_cfg_y = time_cfg_y + time_btn_h + 6
+    local alpha_btn_w = cw
+    local alpha_btn_h = 30
+    local alpha_hov = pl_point_in_rect(mx, my, cx, alpha_cfg_y, alpha_btn_w, alpha_btn_h)
+    local panel_bg = PlayLog.config.panel_bg or { 0.10, 0.10, 0.17, 0.97 }
+    local panel_alpha = pl_clamp(tonumber(panel_bg[4]) or 0.97, 0.20, 1)
+    local alpha_ratio = (panel_alpha - 0.20) / 0.80
+    local alpha_percent = math.floor(panel_alpha * 100 + 0.5)
+    love.graphics.setColor(0, 0, 0, 0.35)
+    love.graphics.rectangle("fill", cx, alpha_cfg_y, alpha_btn_w, alpha_btn_h, 4, 4)
+    love.graphics.setColor(br1, br2, br3, alpha_hov and 0.75 or 0.35)
+    love.graphics.rectangle("line", cx, alpha_cfg_y, alpha_btn_w, alpha_btn_h, 4, 4)
+    love.graphics.setColor(0.65, 0.65, 0.65, 1)
+    love.graphics.print("LOG OPACITY", cx + 8, alpha_cfg_y + 2, nil, 0.62, 0.62)
+    love.graphics.setColor(1, 1, 1, 0.82)
+    love.graphics.print(tostring(alpha_percent) .. "%", cx + alpha_btn_w - 44, alpha_cfg_y + 2, nil, 0.62, 0.62)
+    local alpha_bar_x = cx + 8
+    local alpha_bar_y = alpha_cfg_y + 16
+    local alpha_bar_w = alpha_btn_w - 16
+    local alpha_bar_h = 8
+    love.graphics.setColor(1, 1, 1, 0.12)
+    love.graphics.rectangle("fill", alpha_bar_x, alpha_bar_y, alpha_bar_w, alpha_bar_h, 3, 3)
+    love.graphics.setColor(br1, br2, br3, 0.85)
+    love.graphics.rectangle("fill", alpha_bar_x, alpha_bar_y, alpha_bar_w * alpha_ratio, alpha_bar_h, 3, 3)
+    local knob_x = alpha_bar_x + alpha_bar_w * alpha_ratio
+    love.graphics.setColor(1, 1, 1, 0.95)
+    love.graphics.circle("fill", knob_x, alpha_bar_y + alpha_bar_h * 0.5, 5)
+    G.playlog_alpha_rect = { x = alpha_bar_x, y = alpha_bar_y, w = alpha_bar_w, h = alpha_bar_h }
+
     --hex input section
     local rows = math.ceil(#PLAYLOG_THEMES / 2)
-    local hex_y = cy + 26 + rows * (btn_h + gap) + 46
+    local hex_y = cy + 26 + rows * (btn_h + gap) + 82
     love.graphics.setColor(pl_col('header_text', 0.95, 0.73, 0.25, 0.7))
     love.graphics.print("CUSTOM COLORS  (click swatch to open picker)", cx, hex_y, nil, 0.68, 0.68)
     hex_y = hex_y + 18
@@ -1814,15 +1935,29 @@ function love.mousepressed(x, y, button, istouch, presses)
                     pl_picker_apply()
                 end
             else
+                local handled_cfg_click = false
                 if G.playlog_time_format_rect and pl_point_in_rect(x, y,
                     G.playlog_time_format_rect.x,
                     G.playlog_time_format_rect.y,
                     G.playlog_time_format_rect.w,
                     G.playlog_time_format_rect.h) then
                     pl_cycle_time_format(1)
+                    handled_cfg_click = true
+                end
+                if (not handled_cfg_click) and G.playlog_alpha_rect and pl_point_in_rect(x, y,
+                    G.playlog_alpha_rect.x,
+                    G.playlog_alpha_rect.y,
+                    G.playlog_alpha_rect.w,
+                    G.playlog_alpha_rect.h) then
+                    local ratio = pl_clamp((x - G.playlog_alpha_rect.x) / math.max(G.playlog_alpha_rect.w, 1), 0, 1)
+                    PlayLog.config.panel_bg = PlayLog.config.panel_bg or { 0.10, 0.10, 0.17, 0.97 }
+                    PlayLog.config.panel_bg[4] = 0.20 + ratio * 0.80
+                    pl_save_config()
+                    G.playlog_alpha_dragging = true
+                    handled_cfg_click = true
                 end
                 --swatch opens picker
-                if G.playlog_hex_rects then
+                if (not handled_cfg_click) and G.playlog_hex_rects then
                     for i, rect in ipairs(G.playlog_hex_rects) do
                         if pl_point_in_rect(x, y, rect.x, rect.y, rect.w, rect.h) then
                             local cur = PlayLog.config[rect.key]
@@ -1834,7 +1969,7 @@ function love.mousepressed(x, y, button, istouch, presses)
                     end
                 end
                 --theme buttons
-                if G.playlog_theme_rects then
+                if (not handled_cfg_click) and G.playlog_theme_rects then
                     for i, rect in ipairs(G.playlog_theme_rects) do
                         if pl_point_in_rect(x, y, rect.x, rect.y, rect.w, rect.h) then
                             pl_apply_theme(PLAYLOG_THEMES[i])
@@ -1921,6 +2056,12 @@ function love.mousemoved(x, y, dx, dy)
                 pl_picker_apply()
             end
         end
+        if G.playlog_alpha_dragging and G.playlog_alpha_rect then
+            local ratio = pl_clamp((x - G.playlog_alpha_rect.x) / math.max(G.playlog_alpha_rect.w, 1), 0, 1)
+            PlayLog.config.panel_bg = PlayLog.config.panel_bg or { 0.10, 0.10, 0.17, 0.97 }
+            PlayLog.config.panel_bg[4] = 0.20 + ratio * 0.80
+            G.playlog_alpha_dirty = true
+        end
     end
     return playlog_mousemoved_ref(x, y, dx, dy)
 end
@@ -1932,12 +2073,18 @@ function love.mousereleased(x, y, button)
         if G.playlog_picker then
             G.playlog_picker._dragging = nil
         end
+        local was_alpha_dragging = G.playlog_alpha_dragging
         G.playlog_panel_dragging = nil
         G.playlog_panel_resizing = nil
+        G.playlog_alpha_dragging = nil
         G.playlog_resize_mode = nil
         if was_resizing and G.playlog_resize_dirty then
             pl_save_config()
             G.playlog_resize_dirty = nil
+        end
+        if was_alpha_dragging and G.playlog_alpha_dirty then
+            pl_save_config()
+            G.playlog_alpha_dirty = nil
         end
     end
     return playlog_mousereleased_ref(x, y, button)
