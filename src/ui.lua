@@ -1252,9 +1252,22 @@ local function pl_draw_config_content(layout)
     love.graphics.circle("fill", knob_x, alpha_bar_y + alpha_bar_h * 0.5, 5)
     G.playlog_alpha_rect = { x = alpha_bar_x, y = alpha_bar_y, w = alpha_bar_w, h = alpha_bar_h }
 
+    local log_types_btn_y = alpha_cfg_y + alpha_btn_h + 6
+    local log_types_btn_h = 30
+    local log_types_hov = pl_point_in_rect(mx, my, cx, log_types_btn_y, cw, log_types_btn_h)
+    love.graphics.setColor(0, 0, 0, 0.35)
+    love.graphics.rectangle("fill", cx, log_types_btn_y, cw, log_types_btn_h, 4, 4)
+    love.graphics.setColor(br1, br2, br3, log_types_hov and 0.75 or 0.35)
+    love.graphics.rectangle("line", cx, log_types_btn_y, cw, log_types_btn_h, 4, 4)
+    love.graphics.setColor(0.65, 0.65, 0.65, 1)
+    love.graphics.print("LOG TYPES", cx + 8, log_types_btn_y + 2, nil, 0.62, 0.62)
+    love.graphics.setColor(1, 1, 1, 0.82)
+    love.graphics.print("Open selector", cx + 8, log_types_btn_y + 13, nil, 0.72, 0.72)
+    G.playlog_log_types_btn_rect = { x = cx, y = log_types_btn_y, w = cw, h = log_types_btn_h }
+
     --hex input section
     local rows = math.ceil(#PLAYLOG_THEMES / 2)
-    local hex_y = cy + 26 + rows * (btn_h + gap) + 82
+    local hex_y = log_types_btn_y + log_types_btn_h + 8
     love.graphics.setColor(pl_col('header_text', 0.95, 0.73, 0.25, 0.7))
     love.graphics.print("CUSTOM COLORS  (click swatch to open picker)", cx, hex_y, nil, 0.68, 0.68)
     hex_y = hex_y + 18
@@ -1838,6 +1851,10 @@ end
 local playlog_keypressed_ref = love.keypressed
 function love.keypressed(key, scancode, isrepeat)
     if pl_is_run_active() then
+        if G.playlog_picker and key == 'escape' then
+            G.playlog_picker = nil
+            return
+        end
         local pk = G.playlog_picker
         if pk and pk.hex_focus then
             if key == 'return' or key == 'kpenter' then
@@ -1995,25 +2012,40 @@ function love.mousepressed(x, y, button, istouch, presses)
         elseif G.playlog_config_open then
             local pk = G.playlog_picker
             if pk then
-                if pk._back_rect and pl_point_in_rect(x, y, pk._back_rect.x, pk._back_rect.y, pk._back_rect.w, pk._back_rect.h) then
-                    G.playlog_picker = nil
-                elseif pk._hex_rect and pl_point_in_rect(x, y, pk._hex_rect.x, pk._hex_rect.y, pk._hex_rect.w, pk._hex_rect.h) then
-                    pk.hex_focus = true
-                    pk.hex_input = nil
-                elseif pk._sq_rect and pl_point_in_rect(x, y, pk._sq_rect.x, pk._sq_rect.y, pk._sq_rect.w, pk._sq_rect.h) then
-                    pk.hex_focus = false
-                    pk.hex_input = nil
-                    local nx = pl_clamp((x - pk._sq_rect.x) / pk._sq_rect.w, 0, 1)
-                    local ny = pl_clamp((y - pk._sq_rect.y) / pk._sq_rect.h, 0, 1)
-                    pk.s = nx; pk.v = 1 - ny
-                    pk._dragging = 'sv'
-                    pl_picker_apply()
-                elseif pk._hbar_rect and pl_point_in_rect(x, y, pk._hbar_rect.x, pk._hbar_rect.y, pk._hbar_rect.w, pk._hbar_rect.h) then
-                    pk.hex_focus = false
-                    pk.hex_input = nil
-                    pk.h = pl_clamp((x - pk._hbar_rect.x) / pk._hbar_rect.w, 0, 1) * 360
-                    pk._dragging = 'hue'
-                    pl_picker_apply()
+                if pk.mode == 'log_types' then
+                    if pk._back_rect and pl_point_in_rect(x, y, pk._back_rect.x, pk._back_rect.y, pk._back_rect.w, pk._back_rect.h) then
+                        G.playlog_picker = nil
+                    elseif pk._type_rects then
+                        for _, rect in ipairs(pk._type_rects) do
+                            if pl_point_in_rect(x, y, rect.x, rect.y, rect.w, rect.h) then
+                                if PlayLog.toggle_log_type_enabled then
+                                    PlayLog.toggle_log_type_enabled(rect.key)
+                                end
+                                break
+                            end
+                        end
+                    end
+                else
+                    if pk._back_rect and pl_point_in_rect(x, y, pk._back_rect.x, pk._back_rect.y, pk._back_rect.w, pk._back_rect.h) then
+                        G.playlog_picker = nil
+                    elseif pk._hex_rect and pl_point_in_rect(x, y, pk._hex_rect.x, pk._hex_rect.y, pk._hex_rect.w, pk._hex_rect.h) then
+                        pk.hex_focus = true
+                        pk.hex_input = nil
+                    elseif pk._sq_rect and pl_point_in_rect(x, y, pk._sq_rect.x, pk._sq_rect.y, pk._sq_rect.w, pk._sq_rect.h) then
+                        pk.hex_focus = false
+                        pk.hex_input = nil
+                        local nx = pl_clamp((x - pk._sq_rect.x) / pk._sq_rect.w, 0, 1)
+                        local ny = pl_clamp((y - pk._sq_rect.y) / pk._sq_rect.h, 0, 1)
+                        pk.s = nx; pk.v = 1 - ny
+                        pk._dragging = 'sv'
+                        pl_picker_apply()
+                    elseif pk._hbar_rect and pl_point_in_rect(x, y, pk._hbar_rect.x, pk._hbar_rect.y, pk._hbar_rect.w, pk._hbar_rect.h) then
+                        pk.hex_focus = false
+                        pk.hex_input = nil
+                        pk.h = pl_clamp((x - pk._hbar_rect.x) / pk._hbar_rect.w, 0, 1) * 360
+                        pk._dragging = 'hue'
+                        pl_picker_apply()
+                    end
                 end
             else
                 local handled_cfg_click = false
@@ -2035,6 +2067,14 @@ function love.mousepressed(x, y, button, istouch, presses)
                     PlayLog.config.panel_bg[4] = 0.20 + ratio * 0.80
                     pl_save_config()
                     G.playlog_alpha_dragging = true
+                    handled_cfg_click = true
+                end
+                if (not handled_cfg_click) and G.playlog_log_types_btn_rect and pl_point_in_rect(x, y,
+                    G.playlog_log_types_btn_rect.x,
+                    G.playlog_log_types_btn_rect.y,
+                    G.playlog_log_types_btn_rect.w,
+                    G.playlog_log_types_btn_rect.h) then
+                    G.playlog_picker = { mode = 'log_types', scroll = 0 }
                     handled_cfg_click = true
                 end
                 --swatch opens picker
@@ -2178,6 +2218,14 @@ function love.wheelmoved(x, y)
     end
     local mx, my = love.mouse.getPosition()
     local layout = pl_get_layout()
+    local pk = G.playlog_picker
+    if G.playlog_visible and pk and pk.mode == 'log_types' and pk._list_rect
+        and pl_point_in_rect(mx, my, pk._list_rect.x, pk._list_rect.y, pk._list_rect.w, pk._list_rect.h) then
+        local step = 20
+        local max_scroll = tonumber(pk._scroll_max) or 0
+        pk.scroll = pl_clamp((tonumber(pk.scroll) or 0) - y * step, 0, max_scroll)
+        return playlog_wheelmoved_ref(x, y)
+    end
     if G.playlog_visible and pl_point_in_rect(mx, my, layout.panel_x, layout.panel_y, layout.panel_w, layout.panel_h) then
         local max_shift = pl_get_max_shift(layout)
         if max_shift > 0 then

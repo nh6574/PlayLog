@@ -55,6 +55,52 @@ function pl_apply_theme(theme)
     end
     pl_save_config()
 end
+
+local function pl_get_sorted_log_type_keys()
+    local keys = {}
+    for key, log_type in pairs(PlayLog.LogTypes or {}) do
+        if type(key) == 'string' and type(log_type) == 'table' then
+            keys[#keys + 1] = key
+        end
+    end
+    table.sort(keys)
+    return keys
+end
+
+function pl_sync_log_type_config(save_if_changed)
+    PlayLog.config.enabled_log_types = PlayLog.config.enabled_log_types or {}
+    local changed = false
+    for _, key in ipairs(pl_get_sorted_log_type_keys()) do
+        if PlayLog.config.enabled_log_types[key] == nil then
+            PlayLog.config.enabled_log_types[key] = true
+            changed = true
+        end
+    end
+    if changed and save_if_changed then
+        pl_save_config()
+    end
+end
+
+function PlayLog.get_log_type_keys()
+    return pl_get_sorted_log_type_keys()
+end
+
+function PlayLog.is_log_type_enabled(key)
+    if not key then return true end
+    pl_sync_log_type_config(false)
+    local enabled = (PlayLog.config.enabled_log_types or {})[key]
+    if enabled == nil then
+        return true
+    end
+    return enabled and true or false
+end
+
+function PlayLog.toggle_log_type_enabled(key)
+    if not key then return end
+    pl_sync_log_type_config(false)
+    PlayLog.config.enabled_log_types[key] = not PlayLog.is_log_type_enabled(key)
+    pl_save_config()
+end
 if not PlayLog.config.panel_bg then
     pl_apply_theme(PLAYLOG_THEMES[1])
 end
@@ -120,6 +166,12 @@ function pl_point_in_rect(px, py, rx, ry, rw, rh)
     return px >= rx and px <= (rx + rw) and py >= ry and py <= (ry + rh)
 end
 
+local function pl_local_clamp(v, lo, hi)
+    if v < lo then return lo end
+    if v > hi then return hi end
+    return v
+end
+
 --Fields shown in the config panel (swatch + label goes to open picker)
 pl_hex_fields = {
     { key = 'panel_bg',    label = 'Background' },
@@ -143,6 +195,75 @@ end
 function pl_draw_picker(layout)
     local pk = G.playlog_picker
     if not pk then return end
+
+    if pk.mode == 'log_types' then
+        local cx = layout.content_x
+        local cy = layout.content_y
+        local cw = layout.content_w
+        local mx, my = love.mouse.getPosition()
+        local keys = PlayLog.get_log_type_keys and PlayLog.get_log_type_keys() or {}
+        local row_h = 20
+        local row_gap = 4
+        local list_x = cx
+        local list_y = cy + 24
+        local list_w = cw
+        local list_h = math.max(20, layout.content_h - 26)
+        local row_step = row_h + row_gap
+        local total_h = #keys * row_step
+        local max_scroll = math.max(0, total_h - list_h)
+        local scroll = pl_local_clamp(tonumber(pk.scroll) or 0, 0, max_scroll)
+        pk.scroll = scroll
+        pk._scroll_max = max_scroll
+
+        local back_hov = pl_point_in_rect(mx, my, cx, cy, 60, 18)
+        love.graphics.setColor(pl_col('border', 0.95, 0.73, 0.25, back_hov and 0.9 or 0.5))
+        love.graphics.rectangle("fill", cx, cy, 60, 18, 3, 3)
+        love.graphics.setColor(0, 0, 0, 0.8)
+        love.graphics.print("< BACK", cx + 4, cy + 2, nil, 0.70, 0.70)
+        love.graphics.setColor(pl_col('header_text', 0.95, 0.73, 0.25, 1))
+        love.graphics.print("LOG TYPES", cx + 68, cy + 3, nil, 0.72, 0.72)
+
+        pk._type_rects = {}
+        pk._back_rect = { x = cx, y = cy, w = 60, h = 18 }
+        pk._list_rect = { x = list_x, y = list_y, w = list_w, h = list_h }
+
+        love.graphics.setScissor(list_x, list_y, list_w, list_h)
+        for i, key in ipairs(keys) do
+            local y = list_y + (i - 1) * row_step - scroll
+            if y + row_h >= list_y and y <= (list_y + list_h) then
+                local hov = pl_point_in_rect(mx, my, list_x, y, list_w, row_h)
+                if hov then
+                    love.graphics.setColor(1, 1, 1, 0.06)
+                    love.graphics.rectangle("fill", list_x, y, list_w, row_h, 3, 3)
+                end
+                local enabled = PlayLog.is_log_type_enabled and PlayLog.is_log_type_enabled(key)
+                local box_x = list_x + 4
+                local box_y = y + 3
+                local box_s = 14
+                local br1, br2, br3 = pl_col('border', 0.95, 0.73, 0.25, 1)
+                love.graphics.setColor(0, 0, 0, 0.45)
+                love.graphics.rectangle("fill", box_x, box_y, box_s, box_s, 3, 3)
+                love.graphics.setColor(br1, br2, br3, enabled and 0.95 or 0.35)
+                love.graphics.rectangle("line", box_x, box_y, box_s, box_s, 3, 3)
+                if enabled then
+                    love.graphics.setColor(br1, br2, br3, 0.95)
+                    love.graphics.rectangle("fill", box_x + 3, box_y + 3, box_s - 6, box_s - 6, 2, 2)
+                end
+                love.graphics.setColor(1, 1, 1, enabled and 0.90 or 0.45)
+                love.graphics.print(key, box_x + box_s + 8, y + 4, nil, 0.72, 0.72)
+                pk._type_rects[#pk._type_rects + 1] = {
+                    x = list_x,
+                    y = y,
+                    w = list_w,
+                    h = row_h,
+                    key = key
+                }
+            end
+        end
+        love.graphics.setScissor()
+        return
+    end
+
     local cx = layout.content_x
     local cy = layout.content_y
     local cw = layout.content_w
