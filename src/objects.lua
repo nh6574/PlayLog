@@ -23,7 +23,7 @@ PlayLog.LogType = SMODS.GameObject:extend {
 PlayLog.LogType {
     key = "message",
     get_message = function(self, args)
-        return PlayLog.fill_vars(args.text, args.vars)
+        return args.text
     end
 }
 
@@ -62,6 +62,9 @@ local function format_card(card)
         end
         return card
     end
+    if type(card) == "table" and card.key then return format_center_from_key(card.key) end
+    if card.is and card:is(Blind) then return format_center_from_key(card.config.blind.key) end
+    if type(card) ~= "table" or not (card.config or {}).center then return "ERROR" end
     if card.playing_card or card.config.center.set == "Default" or card.config.center.set == "Enhanced" then -- TODO: other than figuring how to pass the values/modifiers to the UI, how are no rank/suit cards displayed?
         return PlayLog.localize_rank_of_suit(card.base.value, card.base.suit)
     end
@@ -272,6 +275,13 @@ PlayLog.LogType {
 }
 
 PlayLog.LogType {
+    key = "money_altered",
+    get_message = function(self, args)
+        return PlayLog.localize("money_altered", { args.previous, args.current })
+    end
+}
+
+PlayLog.LogType {
     key = "noped",
     get_message = function(self, args)
         return PlayLog.localize("noped", { format_card(args.card) })
@@ -284,9 +294,14 @@ PlayLog.LogType {
         local old_hover = args.old_level_func or 'hand_level_snapshot_old'
         local new_hover = args.new_level_func or 'hand_level_snapshot_new'
         local arrow_hover = args.arrow_func or 'hand_level_snapshot_arrow'
-        return "{C:attention}" .. localize(args.hand, 'poker_hands') .. "{} leveled up lvl.{F:" .. old_hover .. "}{C:red}"
+
+        local levels_text = localize('k_level_prefix') .. "{F:" .. old_hover .. "}{C:red}"
             .. tostring(args.old_level or "?") .. "{}{} {F:" .. arrow_hover .. "}->{} {F:" .. new_hover .. "}{C:red}"
             .. tostring(args.new_level or "?") .. "{}{}"
+        if args.old_level and args.new_level and args.new_level < args.old_level then
+            return PlayLog.localize("hand_level_down", { localize(args.poker_hand, 'poker_hands'), levels_text })
+        end
+        return PlayLog.localize("hand_level_up", { localize(args.poker_hand, 'poker_hands'), levels_text })
     end
 }
 
@@ -294,14 +309,29 @@ PlayLog.LogType {
     key = "leveled_up",
     get_message = function(self, args)
         local hand_list = {}
-        if #G.handlist == #args.hands then
+        if #G.handlist == #args.poker_hands then
             hand_list[#hand_list + 1] = PlayLog.localize("all_hands")
         else
-            for _, hand in ipairs(args.hands) do
+            for _, hand in ipairs(args.poker_hands) do
                 hand_list[#hand_list + 1] = "{C:attention}" .. localize(hand, 'poker_hands') .. "{}"
             end
         end
         return PlayLog.localize("leveled_up", { format_card(args.card), PlayLog.loc_list(hand_list) })
+    end
+}
+
+PlayLog.LogType {
+    key = "leveled_down",
+    get_message = function(self, args)
+        local hand_list = {}
+        if #G.handlist == #args.poker_hands then
+            hand_list[#hand_list + 1] = PlayLog.localize("all_hands")
+        else
+            for _, hand in ipairs(args.poker_hands) do
+                hand_list[#hand_list + 1] = "{C:attention}" .. localize(hand, 'poker_hands') .. "{}"
+            end
+        end
+        return PlayLog.localize("leveled_down", { format_card(args.card), PlayLog.loc_list(hand_list) })
     end
 }
 
@@ -321,9 +351,7 @@ PlayLog.LogType {
     key = "area_size",
     get_message = function(self, args)
         return PlayLog.localize("area_size",
-            { PlayLog.get_area_name(args.area),
-                args.old_size or args.area.config.card_limit - (args.amount or 0),
-                args.new_size or args.area.config.card_limit })
+            { PlayLog.get_area_name(args.area), args.old_size, args.new_size })
     end
 }
 
@@ -447,7 +475,7 @@ PlayLog.LogType {
 PlayLog.LogType {
     key = "hand_scored",
     get_message = function(self, args)
-        return PlayLog.localize("hand_scored", { args.amount, args.score })
+        return PlayLog.localize("hand_scored", { args.amount, args.score, args.to_beat })
     end
 }
 
@@ -464,5 +492,27 @@ PlayLog.LogType {
     get_message = function(self, args)
         return PlayLog.localize("hand_drawn",
             { PlayLog.loc_list(format_card_list(args.cards, "attention")) })
+    end
+}
+
+PlayLog.LogType {
+    key = "score_to_beat",
+    get_message = function(self, args)
+        return PlayLog.localize("score_to_beat", { args.amount })
+    end
+}
+
+PlayLog.LogType {
+    key = "debuffed_hand",
+    get_message = function(self, args)
+        return PlayLog.localize("debuffed_hand", { localize(args.poker_hand, "poker_hands") })
+    end
+}
+
+PlayLog.LogType {
+    key = "selected_card",
+    get_message = function(self, args)
+        return PlayLog.localize("selected_card",
+            { format_card(args.card), PlayLog.loc_list(format_card_list(args.cards, "attention")) })
     end
 }

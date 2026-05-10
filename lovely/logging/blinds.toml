@@ -1,0 +1,46 @@
+[manifest]
+version = "0.1.0"
+dump_lua = true
+priority = 0
+
+# The Ox
+[[patches]]
+[patches.pattern]
+target = "blind.lua"
+pattern = '''ease_dollars(-G.GAME.dollars, true)'''
+position = 'before'
+match_indent = true
+payload = '''
+if G.GAME.dollars ~= 0 then
+    PlayLog.log{ type = "money", card = self, amount = -G.GAME.dollars }
+end
+'''
+
+# The Tooth
+[[patches]]
+[patches.pattern]
+target = "blind.lua"
+pattern = '''for i = 1, #G.play.cards do'''
+position = 'before'
+match_indent = true
+payload = '''
+if G.GAME.dollars ~= 0 then
+    PlayLog.log{ type = "money", card = self, amount = -#G.play.cards }
+end
+'''
+
+# Cerulean Bell
+[[patches]]
+[patches.pattern]
+target = "blind.lua"
+pattern = '''G.hand:add_to_highlighted(forced_card)'''
+position = 'after'
+match_indent = true
+payload = '''
+G.E_MANAGER:add_event(Event({
+    func = function()
+        PlayLog.log{ type = "selected_card", card = self, cards = { forced_card } }
+        return true
+    end
+}))
+'''

@@ -183,25 +183,28 @@ SMODS.current_mod.calculate = function(self, context)
     end
 
     if context.poker_hand_changed then
+        local card = context.card
+        local hand_key = context.scoring_name
+        local old_level = context.old_level
+        local new_level = context.new_level
         G.E_MANAGER:add_event(Event({
             func = function()
                 PlayLog.temp = type(PlayLog.temp) == 'table' and PlayLog.temp or {}
                 PlayLog.temp.hand_snapshots = type(PlayLog.temp.hand_snapshots) == 'table'
                     and PlayLog.temp.hand_snapshots or {}
 
-                local hand_key = context.scoring_name
                 local old_state = PlayLog.temp.hand_snapshots[hand_key]
                 local hand_now = (G and G.GAME and G.GAME.hands and G.GAME.hands[hand_key]) or nil
                 local new_state = pl_snapshot_hand_state(hand_now) or {}
                 if not old_state then
                     old_state = {
-                        level = tonumber(context.old_level),
+                        level = tonumber(old_level),
                         chips = tonumber(new_state.chips),
                         mult = tonumber(new_state.mult),
                     }
                 end
-                local old_level = tonumber(old_state.level) or tonumber(context.old_level)
-                local new_level = tonumber(new_state.level) or tonumber(context.new_level)
+                old_level = tonumber(old_state.level) or tonumber(old_level)
+                new_level = tonumber(new_state.level) or tonumber(new_level)
                 local old_chips = tonumber(old_state.chips)
                 local new_chips = tonumber(new_state.chips)
                 local old_mult = tonumber(old_state.mult)
@@ -247,13 +250,13 @@ SMODS.current_mod.calculate = function(self, context)
                 })
                 PlayLog.log {
                     type = "hand_level_up",
-                    hand = hand_key,
+                    poker_hand = hand_key,
                     old_level = old_level,
                     new_level = new_level,
                     old_level_func = old_level_func,
                     new_level_func = new_level_func,
                     arrow_func = arrow_func,
-                    card = context.card,
+                    card = card,
                 }
                 PlayLog.temp.hand_snapshots[hand_key] = {
                     level = new_level,
@@ -290,8 +293,22 @@ SMODS.current_mod.calculate = function(self, context)
     end
 
     if context.setting_blind then
-        PlayLog.log { type = "selected_blind", blind = G.GAME.blind.config.blind.key }
+        local blind_key = G.GAME.blind.config.blind.key
+        PlayLog.log { type = "selected_blind", blind = blind_key }
         PlayLog.log { type = "start_round", round = G.GAME.round }
+        PlayLog.log { type = "score_to_beat", amount = G.GAME.blind.chips }
+
+        if blind_key == "bl_ox" then
+            local desc = G.localization.descriptions.Blind.bl_ox.text
+            local text = ""
+            for i, line in ipairs(desc) do
+                if type(line) == "string" then -- just to not break with modded localization changes
+                    text = text .. line .. (i ~= #desc and " " or '')
+                end
+            end
+            local handname = localize(G.GAME.current_round.most_played_poker_hand, "poker_hands")
+            PlayLog.log { type = "message", text = text, vars = { handname } }
+        end
     end
 
     if context.end_of_round and context.game_over == false then
@@ -308,6 +325,9 @@ SMODS.current_mod.calculate = function(self, context)
 
     if context.open_booster then
         local card = context.card
+        if context.card.cost ~= 0 then
+            PlayLog.log { type = "buy", card = card, amount = context.card.cost }
+        end
         G.E_MANAGER:add_event(Event({
             func = function()
                 PlayLog.log { type = "booster_opened", booster = card, cards = G.pack_cards.cards }
@@ -392,7 +412,36 @@ SMODS.current_mod.calculate = function(self, context)
         local amount = SMODS.calculate_round_score()
         G.E_MANAGER:add_event(Event({
             func = function()
-                PlayLog.log { type = "hand_scored", amount = amount, score = G.GAME.chips }
+                PlayLog.log { type = "hand_scored", amount = amount, score = G.GAME.chips, to_beat = G.GAME.blind.chips }
+                return true
+            end
+        }))
+    end
+
+    if context.money_altered then
+        local amount = context.amount
+        local dollars = G.GAME.dollars
+        -- TODO: fix weird case with calling ease_dollars multiple times (the tooth...)
+        if amount ~= 0 then
+            G.E_MANAGER:add_event(Event({
+                func = function()
+                    G.E_MANAGER:add_event(Event({
+                        func = function()
+                            PlayLog.log { type = "money_altered", previous = dollars, current = dollars + amount }
+                            return true
+                        end
+                    }))
+                    return true
+                end
+            }))
+        end
+    end
+
+    if context.debuffed_hand then
+        local handname = context.scoring_name
+        G.E_MANAGER:add_event(Event({
+            func = function()
+                PlayLog.log { type = "debuffed_hand", poker_hand = handname }
                 return true
             end
         }))
@@ -433,7 +482,10 @@ function SMODS.upgrade_poker_hands(args, ...)
     if args.from and args.from.config.center_key ~= "c_black_hole" then
         G.E_MANAGER:add_event(Event({
             func = function()
-                PlayLog.log { type = "leveled_up", hands = args.hands, card = args.from.key or args.from }
+                local from = args.from == G.GAME.blind.children.animatedSprite and G.GAME.blind or
+                    type(args.from) == "table" and args.from.key or args.from
+
+                PlayLog.log { type = (args.level_up or 1) > 0 and "leveled_up" or "leveled_down", poker_hands = args.hands, card = from }
                 return true
             end
         }))
@@ -444,7 +496,14 @@ end
 local cardarea_change_size_ref = CardArea.change_size
 function CardArea:change_size(delta, ...)
     local ret = cardarea_change_size_ref(self, delta, ...)
-    if PlayLog.get_area_name(self) then PlayLog.log { type = "area_size", area = self, amount = delta } end
+    if PlayLog.get_area_name(self) then
+        G.E_MANAGER:add_event(Event({
+            func = function()
+                PlayLog.log { type = "area_size", area = self, old_size = self.config.card_limit - delta, new_size = self.config.card_limit }
+                return true
+            end
+        }))
+    end
     return ret
 end
 

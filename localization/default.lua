@@ -59,8 +59,10 @@ return {
             money = "{C:attention}#1#{} gave {C:money}$#2#{}",
             money_taken = "{C:attention}#1#{} took {C:money}$#2#{}",
             noped = "{C:attention}#1#{} noped!",
-            hand_level_up = "{C:attention}#1#{} leveled up lvl.{C:red}#2#{} -> {C:red}#3#",
+            hand_level_up = "{C:attention}#1#{} leveled up #2#",
+            hand_level_down = "{C:attention}#1#{} leveled down #2#",
             leveled_up = "{C:attention}#1#{} leveled up #2#",
+            leveled_down = "{C:attention}#1#{} leveled down #2#",
             area_size = "{C:attention}#1#{} size changed: {C:red}#2#{} -> {C:red}#3#{}",
             change_area_size = "{C:attention}#1#{} increased {C:attention}#2#{} size by {C:green}#3#",
             change_area_size_neg = "{C:attention}#1#{} reduced {C:attention}#2#{} size by {C:green}#3#",
@@ -75,9 +77,14 @@ return {
             reroll_boss = "Rerolled boss {C:attention}#1#{} -> {C:attention}#2#{}",
             hand_played = "Played {C:attention}#1#{}\nHand contains: #2#",
             hand_played_as = "Hand evaluated as {C:attention}#1#{}",
-            hand_scored = "Hand scored: {C:attention}#1#{} | Current score: {C:attention}#2#{}",
+            hand_scored =
+            "Hand scored: {C:attention}#1#{}\nCurrent score: {C:attention}#2#{} | Score to beat: {C:attention}#3#{}",
+            score_to_beat = "Score to beat: {C:attention}#1#{}",
             discarded = "Discarded #1#",
-            hand_drawn = "Drawn #1#"
+            hand_drawn = "Drawn #1#",
+            money_altered = "{C:money}$#1#{} -> {C:money}$#2#{}",
+            debuffed_hand = "{C:attention}#1#{} not allowed. Hand did not score",
+            selected_card = "{C:attention}#1#{} selected #2#"
         }
     }
 }
