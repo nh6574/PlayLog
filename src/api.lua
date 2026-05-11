@@ -1,6 +1,7 @@
 -- MAIN API
 
 function PlayLog.log(args)
+    if type(args) == "string" then args = { type = "message", text = args } end
     assert(args and args.type and PlayLog.LogTypes[args.type], "PlayLog.log was called without a valid type")
     if PlayLog.is_log_type_enabled and not PlayLog.is_log_type_enabled(args.type) then
         return

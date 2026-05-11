@@ -152,6 +152,7 @@ PlayLog.FUNCS.hand_level_snapshot_arrow = pl_build_hand_level_snapshot
     TODO: Logs missing:
     - Hand/discard amount changed (likely needs metatables)
     - Card debuffing (why are there like 4 ways to do it)
+    - Retriggers
 ]]
 
 SMODS.current_mod.calculate = function(self, context)
@@ -597,5 +598,86 @@ function Blind:disable(...)
             return true
         end
     }))
+    return ret
+end
+
+local smods_calculate_individual_effect_ref = SMODS.calculate_individual_effect
+SMODS.calculate_individual_effect = function(effect, scored_card, key, amount, ...)
+    local ret = smods_calculate_individual_effect_ref(effect, scored_card, key, amount, ...)
+    if SMODS.Scoring_Parameter_Calculation[key] or (Talisman and Talisman.effects.list[key]) then
+        G.E_MANAGER:add_event(Event({
+            func = function()
+                PlayLog.log { type = "score", card = effect.juice_card or effect.card, scored_card = scored_card, effect = key, message_card = effect.message_card, amount = amount }
+                return true
+            end
+        }))
+    end
+    if key == 'p_dollars' or key == 'dollars' or key == 'h_dollars' then
+        G.E_MANAGER:add_event(Event({
+            func = function()
+                PlayLog.log { type = "money", card = scored_card or effect.message_card or effect.juice_card or effect.card, amount = amount }
+                return true
+            end
+        }))
+    end
+    if (key == 'score' or key == 'h_score') and amount ~= 0 then
+        G.E_MANAGER:add_event(Event({
+            func = function()
+                PlayLog.log { type = "added_score", card = scored_card or effect.message_card or effect.juice_card or effect.card, amount = amount }
+                return true
+            end
+        }))
+    end
+    if (key == 'xscore' or key == 'h_xscore' or key == 'x_score' or key == 'h_x_score') and amount ~= 1 then
+        G.E_MANAGER:add_event(Event({
+            func = function()
+                PlayLog.log { type = "added_score", card = scored_card or effect.message_card or effect.juice_card or effect.card, mult = amount }
+                return true
+            end
+        }))
+    end
+    if (key == 'blind_size' or key == 'h_blind_size' or key == 'blindsize' or key == 'h_blindsize') and amount ~= 0 then
+        G.E_MANAGER:add_event(Event({
+            func = function()
+                PlayLog.log { type = "added_blind_size", card = scored_card or effect.message_card or effect.juice_card or effect.card, amount = amount }
+                return true
+            end
+        }))
+    end
+    if (key == 'xblind_size' or key == 'h_xblind_size' or key == 'x_blind_size' or key == 'h_x_blindsize' or key == 'xblindsize' or key == 'h_xblindsize' or key == 'x_blindsize' or key == 'h_x_blindsize') and amount ~= 1 then
+        G.E_MANAGER:add_event(Event({
+            func = function()
+                PlayLog.log { type = "added_blind_size", card = scored_card or effect.message_card or effect.juice_card or effect.card, mult = amount }
+                return true
+            end
+        }))
+    end
+    local one_to_one_keys = {
+        swap = true,
+        balance = true,
+        saved = true
+    }
+    if one_to_one_keys[key] then
+        G.E_MANAGER:add_event(Event({
+            func = function()
+                PlayLog.log { type = key, card = scored_card or effect.message_card or effect.juice_card or effect.card }
+                return true
+            end
+        }))
+    end
+    return ret
+end
+
+local smods_blueprint_effect_ref = SMODS.blueprint_effect
+function SMODS.blueprint_effect(copier, copied_card, context)
+    local ret = smods_blueprint_effect_ref
+    if ret then
+        G.E_MANAGER:add_event(Event({
+            func = function()
+                PlayLog.log { type = "blueprint", card = copier, copied = copied_card }
+                return true
+            end
+        }))
+    end
     return ret
 end

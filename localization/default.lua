@@ -29,6 +29,8 @@ return {
 
             -- Others
             all_hands = "all hands",
+            mult = "#1#{} Mult", -- the {} is there as a dirty hack to finish the color formatting :3
+            chips = "#1#{} Chips",
 
             -- Logging
             started = "Started game on #1#",
@@ -102,7 +104,20 @@ return {
             perished = "{C:attention}#1#{} perished!",
             scale = "{C:attention}#1#{} values changed #2# -> #3#",
             scale_by = "{C:attention}#1#{} values changed by #2#",
-            reset = "{C:attention}#1#{} values reset!"
+            reset = "{C:attention}#1#{} values reset!",
+            scored = "{C:attention}#1#{} scored #2#",
+            scored_other = "{C:attention}#1#{} made {C:attention}#2#{} score #3#",
+            scored_gen = "Scored #1#",
+            blueprint = "{C:attention}#1#{} copied the ability of {C:attention}#2#{}",
+            repetition = "{C:attention}#1#{} retriggered {C:attention}#2#{} {C:attention}#3#{} time(s)",
+            added_score = "{C:attention}#1#{} added {C:attention}#2#{} to the total score",
+            decreased_score = "{C:attention}#1#{} decreased the total score by {C:attention}#2#{}",
+            added_xscore = "{C:attention}#1#{} multiplied the total score by {C:attention}#2#{}",
+            added_blind_size = "{C:attention}#1#{} added {C:attention}#2#{} to the Blind's requirements",
+            decreased_blind_size = "{C:attention}#1#{} decreased the Blind's requirements by {C:attention}#2#{}",
+            added_xblind_size = "{C:attention}#1#{} multiplied the Blind's requirements by {C:attention}#2#{}",
+            swap = "{C:attention}Swapped{} {C:chips}Chips{} and {C:mult}Mult{}",
+            balance = "{C:attention}Balanced{} {C:chips}Chips{} and {C:mult}Mult{}",
         }
     }
 }

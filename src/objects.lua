@@ -647,47 +647,75 @@ PlayLog.LogType {
     end
 }
 
+PlayLog.score_base_colors = {}
+PlayLog.score_border_colors = {}
+PlayLog.score_symbols = {}
+
+for _, v in ipairs({ 'mult', 'h_mult', 'mult_mod' }) do PlayLog.score_base_colors[v] = 'mult' end
+for _, v in ipairs({ 'chips', 'h_chips', 'chip_mod' }) do PlayLog.score_base_colors[v] = 'chips' end
+for _, v in ipairs({ 'dollars', 'extra_value' }) do
+    PlayLog.score_base_colors[v] = 'money'
+    PlayLog.score_symbols[v] = '$'
+end
+for _, v in ipairs({ 'caino_xmult', 'xmult', 'x_mult', 'Xmult', 'x_mult_mod', 'Xmult_mod' }) do
+    PlayLog.score_border_colors[v] = 'mult'
+end
+for _, v in ipairs({ 'xchips', 'x_chips', 'Xchips', 'Xchip_mod' }) do
+    PlayLog.score_border_colors[v] = 'chips'
+end
+for _, v in ipairs({ 'xdollars', 'Xdollars' }) do PlayLog.score_base_colors[v] = 'money' end
+for _, v in ipairs({ "Echip_mod", "ee_chips", "eeechips", "e_mult", "EEEchip_mod", "hyperchip_mod", "hyper_mult", "hypermult_mod", "eemult", "echips", "emult", "hypermult", "EEEmult_mod", "eeemult", "hyperchips", "eee_mult", "EEmult_mod", "Emult_mod", "EEchip_mod", "ee_mult", "e_chips", "eee_chips", "eechips", "hyper_chips" }) do
+    PlayLog.score_border_colors[v] = 'dark_edition'
+    PlayLog.score_symbols[v] = 'talisman'
+end
+
+local pl_format_score_value = function(value, effect)
+    if not value then return 'ERROR' end
+    local colour = "{C:attention}"
+    local colour_end = "{}"
+    local symbol = PlayLog.score_symbols[effect]
+    if not effect then return colour .. tostring(value) .. colour_end end
+    local inferred_colours = PlayLog.score_base_colors
+    local inferred_borders = PlayLog.score_border_colors
+    if inferred_colours[effect] and not inferred_borders[effect] then
+        colour = "{C:" .. inferred_colours[effect] .. "}"
+    end
+    if inferred_borders[effect] then
+        symbol = symbol or "X"
+        colour = "{X:" .. inferred_borders[effect] .. ",C:" .. (inferred_colours[effect] or "white") .. "}"
+    end
+    if not symbol then
+        symbol = "+"
+    end
+    local negative = value < 0
+    value = math.abs(value)
+    if symbol == "talisman" then
+        if Talisman and Talisman.effects.list[effect] then
+            value = Talisman.effects.list[effect].stringify(value)
+            symbol = nil
+        else
+            symbol = "^"
+        end
+    end
+    value = tostring(value)
+    if effect:find("mult") then
+        value = PlayLog.localize("mult", { value })
+    elseif effect:find("chip") then
+        value = PlayLog.localize("chips", { value })
+    end
+    return colour .. (negative and '-' or '') .. (symbol or '') .. value .. colour_end
+end
+
 PlayLog.LogType {
     key = "scale",
     get_message = function(self, args)
-        args.infer_colour = args.infer_colour or "none"
-        local colour = "{C:attention}"
-        local should_be_x
-        if args.infer_colour then
-            local inferred_colours = {
-                mult = "mult",
-                chips = "chips",
-                dollars = "money",
-                extra_value = "money"
-            }
-            local inferred_borders = {
-                caino_xmult = "mult",
-                xmult = "mult",
-                x_mult = "mult",
-                Xmult = "mult",
-                xchips = "chips",
-                x_chips = "chips",
-                Xchips = "chips"
-            }
-            if inferred_colours[args.infer_colour] then
-                colour = "{C:" .. inferred_colours[args.infer_colour] .. "}"
-            end
-            if inferred_borders[args.infer_colour] then
-                should_be_x = true
-                colour = "{X:" .. inferred_borders[args.infer_colour] .. ",C:white}"
-            end
-        end
-        local colour_end = colour and "{}" or ""
-        local format_value = function(value)
-            return colour .. (should_be_x and "X" or (value > 0 and "+" or '')) .. value .. colour_end
-        end
         if not args.previous or not args.current then
             return PlayLog.localize("scale_by",
-                { PlayLog.format_object(args.card), format_value(args.amount) })
+                { PlayLog.format_object(args.card), pl_format_score_value(args.amount, args.effect) })
         end
         return PlayLog.localize("scale",
             { PlayLog.format_object(args.card),
-                format_value(args.previous), format_value(args.current) })
+                pl_format_score_value(args.previous, args.effect), pl_format_score_value(args.current, args.effect) })
     end
 }
 
@@ -696,5 +724,83 @@ PlayLog.LogType {
     get_message = function(self, args)
         return PlayLog.localize("reset",
             { PlayLog.format_object(args.card) })
+    end
+}
+
+PlayLog.LogType {
+    key = "score",
+    get_message = function(self, args)
+        local card = args.card or args.scored_card
+        card = card == G.GAME.blind.children.animatedSprite and G.GAME.blind or card
+        if card == G.deck.cards[1] or (card.is and card:is(CardArea)) then
+            card = nil
+        end
+        local scored_card = args.message_card or args.scored_card or args.card
+        scored_card = scored_card == G.GAME.blind.children.animatedSprite and G.GAME.blind or scored_card
+        if scored_card == G.deck.cards[1] or (scored_card.is and scored_card:is(CardArea)) then
+            scored_card = nil
+        end
+
+        if not card and not scored_card then
+            return PlayLog.localize("scored_gen",
+                { pl_format_score_value(args.amount, args.effect) })
+        end
+
+        if card and scored_card and card ~= scored_card then
+            return PlayLog.localize("scored_other",
+                { PlayLog.format_object(card), PlayLog.format_object(scored_card), pl_format_score_value(args.amount,
+                    args.effect) })
+        end
+
+        return PlayLog.localize("scored",
+            { PlayLog.format_object(card or scored_card), pl_format_score_value(args.amount, args.effect) })
+    end
+}
+
+PlayLog.LogType {
+    key = "blueprint",
+    get_message = function(self, args)
+        return PlayLog.localize("blueprint",
+            { PlayLog.format_object(args.card), PlayLog.format_object(args.copied) })
+    end
+}
+
+PlayLog.LogType {
+    key = "added_score",
+    get_message = function(self, args)
+        if args.mult then
+            if args.mult < 1 then
+                return PlayLog.localize("decreased_score",
+                    { PlayLog.format_object(args.card), "X" .. (1 - args.mult) })
+            end
+            return PlayLog.localize("added_xscore",
+                { PlayLog.format_object(args.card), args.mult })
+        end
+        if args.amount < 0 then
+            return PlayLog.localize("decreased_score",
+                { PlayLog.format_object(args.card), math.abs(args.amount) })
+        end
+        return PlayLog.localize("added_score",
+            { PlayLog.format_object(args.card), args.amount })
+    end
+}
+
+PlayLog.LogType {
+    key = "added_blind_size",
+    get_message = function(self, args)
+        if args.mult then
+            if args.mult < 1 then
+                return PlayLog.localize("decreased_blind_size",
+                    { PlayLog.format_object(args.card), "X" .. (1 - args.mult) })
+            end
+            return PlayLog.localize("added_xblind_size",
+                { PlayLog.format_object(args.card), args.mult })
+        end
+        if args.amount < 0 then
+            return PlayLog.localize("decreased_blind_size",
+                { PlayLog.format_object(args.card), math.abs(args.amount) })
+        end
+        return PlayLog.localize("added_blind_size",
+            { PlayLog.format_object(args.card), args.amount })
     end
 }

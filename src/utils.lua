@@ -394,7 +394,7 @@ end
 function PlayLog.fill_vars(text, vars)
     if not text or not vars then return text end
     local ret, _ = text:gsub("#(%d+)#", function(i)
-        return vars[tonumber(i)] or "nil"
+        return tostring(vars[tonumber(i)]) or "nil"
     end)
 
     return ret

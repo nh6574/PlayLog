@@ -93,7 +93,7 @@ match_indent = true
 payload = '''
     G.E_MANAGER:add_event(Event({
         func = function()
-            PlayLog.log{ type = "scale", card = card, previous = initial, current = args.ref_table[args.ref_value], amount = scalar_value, infer_colour = args.ref_value }
+            PlayLog.log{ type = "scale", card = card, previous = initial, current = args.ref_table[args.ref_value], amount = scalar_value, effect = args.ref_value }
             return true
         end
     }))
