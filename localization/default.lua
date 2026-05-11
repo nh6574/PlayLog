@@ -85,7 +85,9 @@ return {
             hand_drawn = "Drawn #1#",
             money_altered = "{C:money}$#1#{} -> {C:money}$#2#{}",
             debuffed_hand = "{C:attention}#1#{} not allowed. Hand did not score",
-            selected_card = "{C:attention}#1#{} selected #2#"
+            selected_card = "{C:attention}#1#{} selected #2#",
+            changed_sell_cost = "{C:attention}#1#{}'s sell cost changed {C:red}#2#{} -> {C:red}#3#{}",
+            target_changed = "{C:attention}#1#{}'s target changed to #2#"
         }
     }
 }

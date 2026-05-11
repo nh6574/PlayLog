@@ -148,6 +148,11 @@ PlayLog.FUNCS.hand_level_snapshot_old = pl_build_hand_level_snapshot
 PlayLog.FUNCS.hand_level_snapshot_new = pl_build_hand_level_snapshot
 PlayLog.FUNCS.hand_level_snapshot_arrow = pl_build_hand_level_snapshot
 
+--[[
+    TODO: Logs missing:
+    - Hand/discard amount changed (likely needs metatables)
+]]
+
 SMODS.current_mod.calculate = function(self, context)
     pl_ensure_hand_snapshots()
 

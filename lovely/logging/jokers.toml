@@ -20,3 +20,105 @@ G.E_MANAGER:add_event(Event({
     end
 }))
 '''
+
+# Marble Joker
+[[patches]]
+[patches.pattern]
+target = "card.lua"
+pattern = '''
+playing_card_joker_effects({card})
+'''
+position = 'after'
+match_indent = true
+payload = '''
+G.E_MANAGER:add_event(Event({
+    func = function()
+        PlayLog.log{ type = "creates", card = self, created = { card } }
+        return true
+    end
+}))
+'''
+
+# DNA
+[[patches]]
+[patches.pattern]
+target = "card.lua"
+pattern = '''
+local _card = copy_card(context.full_hand[1], nil, nil, G.playing_card)
+'''
+position = 'after'
+match_indent = true
+payload = '''
+PlayLog.log{ type = "copies", card = self, copied = { context.full_hand[1] } }
+'''
+
+# Sixth Sense
+[[patches]]
+[patches.pattern]
+target = "card.lua"
+pattern = '''
+context.full_hand[1].sixth_sense = true
+'''
+position = 'after'
+match_indent = true
+payload = '''
+local playlog_card = context.full_hand[1]
+G.E_MANAGER:add_event(Event({
+    func = function()
+        PlayLog.log{ type = "destroys", card = self, destroyed = { playlog_card } }
+        return true
+    end
+}))
+'''
+
+[[patches]]
+[patches.pattern]
+target = "card.lua"
+pattern = '''
+local card = create_card('Spectral',G.consumeables, nil, nil, nil, nil, nil, 'sixth')
+card:add_to_deck()
+G.consumeables:emplace(card)
+'''
+position = 'after'
+match_indent = true
+payload = '''
+G.E_MANAGER:add_event(Event({
+    func = function()
+        PlayLog.log{ type = "creates", card = self, created = { card } }
+        return true
+    end
+}))
+'''
+
+# Superposition
+[[patches]]
+[patches.pattern]
+target = "card.lua"
+pattern = '''
+local card = create_card(card_type,G.consumeables, nil, nil, nil, nil, nil, 'sup')
+card:add_to_deck()
+G.consumeables:emplace(card)
+'''
+position = 'after'
+match_indent = true
+payload = '''
+G.E_MANAGER:add_event(Event({
+    func = function()
+        PlayLog.log{ type = "creates", card = self, created = { card } }
+        return true
+    end
+}))
+'''
+
+# To Do List
+[[patches]]
+[patches.pattern]
+target = "card.lua"
+pattern = '''
+self.ability.to_do_poker_hand = pseudorandom_element(_poker_hands, pseudoseed('to_do'))
+'''
+position = 'after'
+match_indent = true
+payload = '''
+PlayLog.log{ type = "target_changed", card = self, targets = { localize(self.ability.to_do_poker_hand, "poker_hands") } }
+'''
