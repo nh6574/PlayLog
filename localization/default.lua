@@ -4,7 +4,9 @@ return {
             PlayLog = {
                 name = "PlayLog",
                 text = {
-                    "Adds a log to the game"
+                    "Adds a log to the game",
+                    " ",
+                    "Icon by {C:attention}J8-Bit"
                 }
             }
         },
@@ -35,6 +37,7 @@ return {
             mod_options = "{C:attention}#1#{}: #2# enabled",
             selected_blind = "Selected #1#",
             defeated_blind = "Defeated #1#",
+            blind_disabled = "#1# disabled",
             skip_blind = "Skipped #1#",
             skip_blind_for = "Skipped #1# for #2#",
             start_round = "Started {C:attention}round #1#{}",
@@ -55,6 +58,7 @@ return {
             converts_multiple = "{C:attention}#1#{} turned #2#",
             converts_individual = "#1# into {C:attention}#2#",
             applied = "{C:attention}#1#{} has applied {C:attention}#3#{} to #2#",
+            removed_modifier = "{C:attention}#1#{} has removed {C:attention}#3#{} from #2#",
             copies = "{C:attention}#1#{} copied #2#",
             copies_into = "{C:attention}#1#{} turned #3# into #2#",
             money = "{C:attention}#1#{} gave {C:money}$#2#{}",
@@ -87,7 +91,15 @@ return {
             debuffed_hand = "{C:attention}#1#{} not allowed. Hand did not score",
             selected_card = "{C:attention}#1#{} selected #2#",
             changed_sell_cost = "{C:attention}#1#{}'s sell cost changed {C:red}#2#{} -> {C:red}#3#{}",
-            target_changed = "{C:attention}#1#{}'s target changed to #2#"
+            target_changed = "{C:attention}#1#{}'s target changed to #2#",
+            saved = "Saved by {C:attention}#1#{}",
+            eaten = "{C:attention}#1#{} eaten!",
+            extinct = "{C:attention}#1#{} extinct!",
+            melted = "{C:attention}#1#{} melted!",
+            drank = "{C:attention}#1#{} drank!",
+            rental = "Paid {C:money}$#2#{} in rent for {C:attention}#1#",
+            perishable = "{C:attention}#1#{} perishes in {C:attention}#2#{}",
+            perished = "{C:attention}#1#{} perished!"
         }
     }
 }

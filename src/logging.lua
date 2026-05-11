@@ -585,3 +585,16 @@ G.FUNCS.reroll_boss = function(e)
         end
     }))
 end
+
+local blind_disable_ref = Blind.disable
+function Blind:disable(...)
+    if self.disabled then return blind_disable_ref(self, ...) end
+    local ret = blind_disable_ref(self, ...)
+    G.E_MANAGER:add_event(Event({
+        func = function()
+            PlayLog.log { type = "blind_disabled", blind = self.config.blind.key }
+            return true
+        end
+    }))
+    return ret
+end

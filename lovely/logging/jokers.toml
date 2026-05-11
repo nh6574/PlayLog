@@ -76,8 +76,6 @@ G.E_MANAGER:add_event(Event({
 target = "card.lua"
 pattern = '''
 local card = create_card('Spectral',G.consumeables, nil, nil, nil, nil, nil, 'sixth')
-card:add_to_deck()
-G.consumeables:emplace(card)
 '''
 position = 'after'
 match_indent = true
@@ -96,8 +94,6 @@ G.E_MANAGER:add_event(Event({
 target = "card.lua"
 pattern = '''
 local card = create_card(card_type,G.consumeables, nil, nil, nil, nil, nil, 'sup')
-card:add_to_deck()
-G.consumeables:emplace(card)
 '''
 position = 'after'
 match_indent = true
@@ -121,4 +117,356 @@ position = 'after'
 match_indent = true
 payload = '''
 PlayLog.log{ type = "target_changed", card = self, targets = { localize(self.ability.to_do_poker_hand, "poker_hands") } }
+'''
+
+# Seance
+[[patches]]
+[patches.pattern]
+target = "card.lua"
+pattern = '''
+local card = create_card('Spectral',G.consumeables, nil, nil, nil, nil, nil, 'sea')
+'''
+position = 'after'
+match_indent = true
+payload = '''
+G.E_MANAGER:add_event(Event({
+    func = function()
+        PlayLog.log{ type = "creates", card = self, created = { card } }
+        return true
+    end
+}))
+'''
+
+# Riff-raff
+[[patches]]
+[patches.pattern]
+target = "card.lua"
+pattern = '''
+for i = 1, jokers_to_create do
+    local card = create_card('Joker', G.jokers, nil, 0, nil, nil, nil, 'rif')
+    card:add_to_deck()
+    G.jokers:emplace(card)
+    card:start_materialize()
+    G.GAME.joker_buffer = 0
+end
+'''
+position = 'at'
+match_indent = true
+payload = '''
+local playlog_cards = {}
+for i = 1, jokers_to_create do
+    local card = create_card('Joker', G.jokers, nil, 0, nil, nil, nil, 'rif')
+    card:add_to_deck()
+    G.jokers:emplace(card)
+    card:start_materialize()
+    G.GAME.joker_buffer = 0
+    playlog_cards[#playlog_cards+1] = card
+end
+PlayLog.log{ type = "creates", card = self, created = playlog_cards }
+'''
+
+# Vampire
+[[patches]]
+[patches.pattern]
+target = "card.lua"
+pattern = '''
+v:set_ability(G.P_CENTERS.c_base, nil, true)
+'''
+position = 'at'
+match_indent = true
+payload = '''
+local playlog_enhancement = v.config.center.key
+v:set_ability(G.P_CENTERS.c_base, nil, true)
+G.E_MANAGER:add_event(Event({
+    func = function()
+        PlayLog.log{ type = "removed_modifier", card = self, targets = { v }, enhancement = playlog_enhancement }
+        return true
+    end
+}))
+'''
+
+# Vagabond
+[[patches]]
+[patches.pattern]
+target = "card.lua"
+pattern = '''
+local card = create_card('Tarot',G.consumeables, nil, nil, nil, nil, nil, 'vag')
+'''
+position = 'after'
+match_indent = true
+payload = '''
+G.E_MANAGER:add_event(Event({
+    func = function()
+        PlayLog.log{ type = "creates", card = self, created = { card } }
+        return true
+    end
+}))
+'''
+
+# Midas Mask
+[[patches]]
+[patches.pattern]
+target = "card.lua"
+pattern = '''
+if #faces > 0 then
+'''
+position = 'after'
+match_indent = true
+payload = '''
+    G.E_MANAGER:add_event(Event({
+        func = function()
+            PlayLog.log{ type = "converts", card = self, converted = faces, enhancement = "m_gold" }
+            return true
+        end
+    }))
+'''
+
+# Gift Card
+[[patches]]
+[patches.pattern]
+target = "card.lua"
+pattern = '''
+if self.ability.name == 'Gift Card' then
+'''
+position = 'after'
+match_indent = true
+payload = '''
+    for _, joker in ipairs(G.jokers.cards) do
+        if joker.set_cost then
+            G.E_MANAGER:add_event(Event({
+                func = function()
+                    PlayLog.log{ type = "changed_sell_cost", card = joker, previous = joker.cost - self.ability.extra, current = joker.cost }
+                    return true
+                end
+            }))
+        end
+    end
+    for _, consumable in ipairs(G.consumeables.cards) do
+        if consumable.set_cost then
+            G.E_MANAGER:add_event(Event({
+                func = function()
+                    PlayLog.log{ type = "changed_sell_cost", card = consumable, previous = consumable.cost - self.ability.extra, current = consumable.cost }
+                    return true
+                end
+            }))
+        end
+    end
+
+'''
+
+# Hallucination
+[[patches]]
+[patches.pattern]
+target = "card.lua"
+pattern = '''
+local card = create_card('Tarot',G.consumeables, nil, nil, nil, nil, nil, 'hal')
+'''
+position = 'after'
+match_indent = true
+payload = '''
+G.E_MANAGER:add_event(Event({
+    func = function()
+        PlayLog.log{ type = "creates", card = self, created = { card } }
+        return true
+    end
+}))
+'''
+
+# Diet Cola
+[[patches]]
+[patches.pattern]
+target = "card.lua"
+pattern = '''
+add_tag(Tag('tag_double'))
+'''
+position = 'after'
+match_indent = true
+payload = '''
+G.E_MANAGER:add_event(Event({
+    func = function()
+        PlayLog.log{ type = "creates", card = self, created = { 'tag_double' } }
+        return true
+    end
+}))
+'''
+
+# Trading Card
+[[patches]]
+[patches.pattern]
+target = "card.lua"
+pattern = '''
+G.GAME.current_round.discards_used <= 0 and #context.full_hand == 1 then
+'''
+position = 'after'
+match_indent = true
+payload = '''
+local playlog_card = context.full_hand[1]
+G.E_MANAGER:add_event(Event({
+    func = function()
+        PlayLog.log{ type = "destroys", card = self, destroyed = { playlog_card } }
+        PlayLog.log{ type = "money", card = self, amount = self.ability.extra }
+        return true
+    end
+}))
+'''
+
+# Certificate
+[[patches]]
+[patches.pattern]
+target = "card.lua"
+pattern = '''
+_card:set_seal(SMODS.poll_seal({type_key = 'certsl', guaranteed = true}), nil, true)
+'''
+position = 'after'
+match_indent = true
+payload = '''
+G.E_MANAGER:add_event(Event({
+    func = function()
+        PlayLog.log{ type = "creates", card = self, created = { _card } }
+        return true
+    end
+}))
+'''
+
+# Invisible Joker
+[[patches]]
+[patches.pattern]
+target = "card.lua"
+pattern = '''
+if card.ability.invis_rounds then card.ability.invis_rounds = 0 end
+'''
+position = 'after'
+match_indent = true
+payload = '''
+G.E_MANAGER:add_event(Event({
+    func = function()
+        PlayLog.log{ type = "copies", card = self, copied = { chosen_joker } }
+        return true
+    end
+}))
+'''
+
+# Cartomancer
+[[patches]]
+[patches.pattern]
+target = "card.lua"
+pattern = '''
+local card = create_card('Tarot',G.consumeables, nil, nil, nil, nil, nil, 'car')
+'''
+position = 'after'
+match_indent = true
+payload = '''
+G.E_MANAGER:add_event(Event({
+    func = function()
+        PlayLog.log{ type = "creates", card = self, created = { card } }
+        return true
+    end
+}))
+'''
+
+# Perkeo
+# TODO: See if it can get the original card instead (trying to not modify vanilla code)
+[[patches]]
+[patches.pattern]
+target = "card.lua"
+pattern = '''
+local card = copy_card(pseudorandom_element(G.consumeables.cards, pseudoseed('perkeo')), nil)
+'''
+position = 'after'
+match_indent = true
+payload = '''
+G.E_MANAGER:add_event(Event({
+    func = function()
+        PlayLog.log{ type = "copies", card = self, copied = { card } }
+        return true
+    end
+}))
+'''
+
+# The Idol
+[[patches]]
+[patches.pattern]
+target = "functions/common_events.lua"
+pattern = '''
+G.GAME.current_round.idol_card.id = idol_card.base.id
+'''
+position = 'after'
+match_indent = true
+payload = '''
+local playlog_joker = SMODS.find_card("j_idol", true)[1]
+if playlog_joker then
+    PlayLog.log{ type = "target_changed", card = playlog_joker, targets = { idol_card } }
+end
+'''
+
+# Mail-In Rebate
+[[patches]]
+[patches.pattern]
+target = "functions/common_events.lua"
+pattern = '''
+G.GAME.current_round.mail_card.id = mail_card.base.id
+'''
+position = 'after'
+match_indent = true
+payload = '''
+local playlog_joker = SMODS.find_card("j_mail", true)[1]
+if playlog_joker then
+    PlayLog.log{ type = "target_changed", card = playlog_joker, targets = { localize(G.GAME.current_round.mail_card.rank, "ranks") } }
+end
+'''
+
+# Ancient Joker
+[[patches]]
+[patches.pattern]
+target = "functions/common_events.lua"
+pattern = '''
+G.GAME.current_round.ancient_card.suit = ancient_card
+'''
+position = 'after'
+match_indent = true
+payload = '''
+local playlog_joker = SMODS.find_card("j_ancient", true)[1]
+if playlog_joker then
+    PlayLog.log{ type = "target_changed", card = playlog_joker, targets = { "{C:" .. G.GAME.current_round.ancient_card.suit:lower() .. "}" .. localize(G.GAME.current_round.ancient_card.suit, "suits_plural") .. "{}" } }
+end
+'''
+
+# Castle
+[[patches]]
+[patches.pattern]
+target = "functions/common_events.lua"
+pattern = '''
+G.GAME.current_round.castle_card.suit = castle_card.base.suit
+'''
+position = 'after'
+match_indent = true
+payload = '''
+local playlog_joker = SMODS.find_card("j_castle", true)[1]
+if playlog_joker then
+    PlayLog.log{ type = "target_changed", card = playlog_joker, targets = { "{C:" .. G.GAME.current_round.castle_card.suit:lower() .. "}" .. localize(G.GAME.current_round.castle_card.suit, "suits_plural") .. "{}" } }
+end
+'''
+
+# Ramen, Turtle Bean, Popcorn, Gros Michel, Cavendish, Ice Cream, Seltzer
+[[patches]]
+[patches.pattern]
+target = "card.lua"
+pattern = '''
+SMODS.destroy_cards(self, nil, nil, true)
+'''
+position = 'after'
+match_indent = true
+payload = '''
+G.E_MANAGER:add_event(Event({
+    func = function()
+        local types = {
+            j_canvendish = "extinct",
+            j_gros_michel = "extinct",
+            j_ice_cream = "melted",
+            j_selzer = "drank",
+        }
+        PlayLog.log{ type = "eaten", card = self, food_type = types[self.config.center_key] or "eaten" }
+        return true
+    end
+}))
 '''

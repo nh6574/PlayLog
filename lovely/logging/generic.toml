@@ -35,3 +35,50 @@ match_indent = true
 payload = '''
 PlayLog.log{ type = "lost", endless = G.GAME.round_resets.ante > G.GAME.win_ante }
 '''
+
+# Rental
+[[patches]]
+[patches.pattern]
+target = "card.lua"
+pattern = "ease_dollars(-G.GAME.rental_rate)"
+position = 'after'
+match_indent = true
+payload = '''
+G.E_MANAGER:add_event(Event({
+    func = function()
+        PlayLog.log{ type = "rental", card = self, amount = G.GAME.rental_rate }
+        return true
+    end
+}))
+'''
+
+# Perishable
+[[patches]]
+[patches.pattern]
+target = "card.lua"
+pattern = "if self.area == G.jokers then self:remove_from_deck(true) end"
+position = 'after'
+match_indent = true
+payload = '''
+G.E_MANAGER:add_event(Event({
+    func = function()
+        PlayLog.log{ type = "perished", card = self }
+        return true
+    end
+}))
+'''
+
+[[patches]]
+[patches.pattern]
+target = "card.lua"
+pattern = "self.ability.perish_tally = self.ability.perish_tally - 1"
+position = 'after'
+match_indent = true
+payload = '''
+G.E_MANAGER:add_event(Event({
+    func = function()
+        PlayLog.log{ type = "perishable", card = self, amount = self.ability.perish_tally }
+        return true
+    end
+}))
+'''

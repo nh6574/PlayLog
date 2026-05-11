@@ -249,7 +249,7 @@ PlayLog.LogType {
 PlayLog.LogType {
     key = "converts",
     get_message = function(self, args)
-        local conversion
+        local conversion = args.conversion
         if args.enhancement then
             conversion = PlayLog.format_object(args.enhancement)
         elseif args.suit then
@@ -268,7 +268,7 @@ PlayLog.LogType {
 PlayLog.LogType {
     key = "converts_multiple",
     get_message = function(self, args)
-        local conversions = {}
+        local conversions = args.conversions or {}
         for i, card in ipairs(args.converted) do
             local conversion
             if args.enhancements then
@@ -290,7 +290,7 @@ PlayLog.LogType {
 PlayLog.LogType {
     key = "applied",
     get_message = function(self, args)
-        local conversion
+        local conversion = args.conversion
         if args.edition then
             conversion = PlayLog.format_object(args.edition)
         elseif args.seal then
@@ -303,6 +303,26 @@ PlayLog.LogType {
             { PlayLog.format_object(args.card), PlayLog.loc_list(PlayLog.format_objects(args.applied, "attention")),
                 conversion or
                 "ERROR" })
+    end
+}
+
+PlayLog.LogType {
+    key = "removed_modifier",
+    get_message = function(self, args)
+        local conversion = args.conversion
+        if args.edition then
+            conversion = PlayLog.format_object(args.edition)
+        elseif args.seal then
+            conversion = PlayLog.format_object(args.seal)
+        elseif args.sticker then
+            conversion = localize(args.sticker, "labels")
+        elseif args.enhancement then
+            conversion = PlayLog.format_object(args.enhancement)
+        end
+        return PlayLog.localize("removed_modifier",
+            { PlayLog.format_object(args.card),
+                PlayLog.loc_list(PlayLog.format_objects(args.targets, "attention")),
+                conversion })
     end
 }
 
@@ -576,5 +596,53 @@ PlayLog.LogType {
     get_message = function(self, args)
         return PlayLog.localize("target_changed",
             { PlayLog.format_object(args.card), PlayLog.loc_list(PlayLog.format_objects(args.targets, "attention")) })
+    end
+}
+
+PlayLog.LogType {
+    key = "blind_disabled",
+    get_message = function(self, args)
+        return PlayLog.localize("blind_disabled",
+            { PlayLog.format_object(args.blind) })
+    end
+}
+
+PlayLog.LogType {
+    key = "saved",
+    get_message = function(self, args)
+        return PlayLog.localize("saved",
+            { PlayLog.format_object(args.card) })
+    end
+}
+
+PlayLog.LogType {
+    key = "eaten",
+    get_message = function(self, args)
+        return PlayLog.localize(args.food_type or "eaten",
+            { PlayLog.format_object(args.card) })
+    end
+}
+
+PlayLog.LogType {
+    key = "rental",
+    get_message = function(self, args)
+        return PlayLog.localize("rental",
+            { PlayLog.format_object(args.card), args.amount })
+    end
+}
+
+PlayLog.LogType {
+    key = "perishable",
+    get_message = function(self, args)
+        return PlayLog.localize("perishable",
+            { PlayLog.format_object(args.card), args.amount })
+    end
+}
+
+PlayLog.LogType {
+    key = "perished",
+    get_message = function(self, args)
+        return PlayLog.localize("perished",
+            { PlayLog.format_object(args.card) })
     end
 }
