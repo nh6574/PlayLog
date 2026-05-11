@@ -99,7 +99,10 @@ return {
             drank = "{C:attention}#1#{} drank!",
             rental = "Paid {C:money}$#2#{} in rent for {C:attention}#1#",
             perishable = "{C:attention}#1#{} perishes in {C:attention}#2#{}",
-            perished = "{C:attention}#1#{} perished!"
+            perished = "{C:attention}#1#{} perished!",
+            scale = "{C:attention}#1#{} values changed #2# -> #3#",
+            scale_by = "{C:attention}#1#{} values changed by #2#",
+            reset = "{C:attention}#1#{} values reset!"
         }
     }
 }

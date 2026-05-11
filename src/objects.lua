@@ -646,3 +646,55 @@ PlayLog.LogType {
             { PlayLog.format_object(args.card) })
     end
 }
+
+PlayLog.LogType {
+    key = "scale",
+    get_message = function(self, args)
+        args.infer_colour = args.infer_colour or "none"
+        local colour = "{C:attention}"
+        local should_be_x
+        if args.infer_colour then
+            local inferred_colours = {
+                mult = "mult",
+                chips = "chips",
+                dollars = "money",
+                extra_value = "money"
+            }
+            local inferred_borders = {
+                caino_xmult = "mult",
+                xmult = "mult",
+                x_mult = "mult",
+                Xmult = "mult",
+                xchips = "chips",
+                x_chips = "chips",
+                Xchips = "chips"
+            }
+            if inferred_colours[args.infer_colour] then
+                colour = "{C:" .. inferred_colours[args.infer_colour] .. "}"
+            end
+            if inferred_borders[args.infer_colour] then
+                should_be_x = true
+                colour = "{X:" .. inferred_borders[args.infer_colour] .. ",C:white}"
+            end
+        end
+        local colour_end = colour and "{}" or ""
+        local format_value = function(value)
+            return colour .. (should_be_x and "X" or (value > 0 and "+" or '')) .. value .. colour_end
+        end
+        if not args.previous or not args.current then
+            return PlayLog.localize("scale_by",
+                { PlayLog.format_object(args.card), format_value(args.amount) })
+        end
+        return PlayLog.localize("scale",
+            { PlayLog.format_object(args.card),
+                format_value(args.previous), format_value(args.current) })
+    end
+}
+
+PlayLog.LogType {
+    key = "reset",
+    get_message = function(self, args)
+        return PlayLog.localize("reset",
+            { PlayLog.format_object(args.card) })
+    end
+}

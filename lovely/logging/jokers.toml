@@ -470,3 +470,59 @@ G.E_MANAGER:add_event(Event({
     end
 }))
 '''
+
+# Value resets
+[[patches]]
+[patches.pattern]
+target = "card.lua"
+pattern = '''
+return {
+                        message = localize('k_reset'),
+'''
+position = 'before'
+match_indent = true
+payload = '''
+G.E_MANAGER:add_event(Event({
+    func = function()
+        PlayLog.log{ type = "reset", card = self }
+        return true
+    end
+}))
+'''
+
+[[patches]]
+[patches.pattern]
+target = "card.lua"
+pattern = '''
+return {
+                        message = localize('k_reset')
+'''
+position = 'before'
+match_indent = true
+payload = '''
+G.E_MANAGER:add_event(Event({
+    func = function()
+        PlayLog.log{ type = "reset", card = self }
+        return true
+    end
+}))
+'''
+
+[[patches]]
+[patches.pattern]
+target = "card.lua"
+pattern = '''
+return {
+    card = self,
+    message = localize('k_reset')
+'''
+position = 'before'
+match_indent = true
+payload = '''
+G.E_MANAGER:add_event(Event({
+    func = function()
+        PlayLog.log{ type = "reset", card = self }
+        return true
+    end
+}))
+'''
