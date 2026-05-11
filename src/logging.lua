@@ -151,6 +151,7 @@ PlayLog.FUNCS.hand_level_snapshot_arrow = pl_build_hand_level_snapshot
 --[[
     TODO: Logs missing:
     - Hand/discard amount changed (likely needs metatables)
+    - Card debuffing (why are there like 4 ways to do it)
 ]]
 
 SMODS.current_mod.calculate = function(self, context)

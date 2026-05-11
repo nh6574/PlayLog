@@ -1,12 +1,12 @@
-# [WIP] PlayLog - Balatro Mod
+# PlayLog - Balatro Mod
 
 Adds a log of every action taken in a run.
 
 ## Installation
 
-1. Install [Steamodded](https://github.com/Steamopollys/Steamodded) [(version >1.0.0)](https://github.com/Steamodded/smods/wiki)
+1. Install [Steamodded](https://github.com/Steamodded/smods/wiki)
 2. Download the [latest release](https://github.com/nh6574/PlayLog/releases)
-3. Extract the zip file into its own folder inside your Balatro mods folder (%appdata%\Balatro\Mods)
+3. Put the zip inside your Balatro mods folder (%appdata%\Balatro\Mods or equivalent)
 
 ## Contact
 
