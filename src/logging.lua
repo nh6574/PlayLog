@@ -1,23 +1,28 @@
 -- GENERAL LOGS
 PlayLog.temp = {}
 
+local function pl_tonum(v)
+    if v == nil then return nil end
+    return tonumber(v) or tonumber(tostring(v))
+end
+
 local function pl_snapshot_hand_state(hand_state)
     if type(hand_state) ~= 'table' then return nil end
-    local level = tonumber(hand_state.level) or 1
-    local chips = tonumber(hand_state.chips)
-    local mult = tonumber(hand_state.mult)
+    local level = pl_tonum(hand_state.level) or 1
+    local chips = pl_tonum(hand_state.chips)
+    local mult = pl_tonum(hand_state.mult)
 
     if chips == nil then
-        local s_chips = tonumber(hand_state.s_chips)
-        local l_chips = tonumber(hand_state.l_chips)
+        local s_chips = pl_tonum(hand_state.s_chips)
+        local l_chips = pl_tonum(hand_state.l_chips)
         if s_chips and l_chips and level then
             chips = s_chips + l_chips * math.max(level - 1, 0)
         end
     end
 
     if mult == nil then
-        local s_mult = tonumber(hand_state.s_mult)
-        local l_mult = tonumber(hand_state.l_mult)
+        local s_mult = pl_tonum(hand_state.s_mult)
+        local l_mult = pl_tonum(hand_state.l_mult)
         if s_mult and l_mult and level then
             mult = s_mult + l_mult * math.max(level - 1, 0)
         end
@@ -210,12 +215,12 @@ SMODS.current_mod.calculate = function(self, context)
                         mult = tonumber(new_state.mult),
                     }
                 end
-                old_level = tonumber(old_state.level) or tonumber(old_level)
-                new_level = tonumber(new_state.level) or tonumber(new_level)
-                local old_chips = tonumber(old_state.chips)
-                local new_chips = tonumber(new_state.chips)
-                local old_mult = tonumber(old_state.mult)
-                local new_mult = tonumber(new_state.mult)
+                old_level = pl_tonum(old_state.level) or pl_tonum(old_level) or 1
+                new_level = pl_tonum(new_state.level) or pl_tonum(new_level) or 1
+                local old_chips = pl_tonum(old_state.chips)
+                local new_chips = pl_tonum(new_state.chips)
+                local old_mult = pl_tonum(old_state.mult)
+                local new_mult = pl_tonum(new_state.mult)
                 local common_payload = {
                     hand = hand_key,
                     old_level = old_level,
