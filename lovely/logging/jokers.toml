@@ -235,7 +235,7 @@ payload = '''
         if joker.set_cost then
             G.E_MANAGER:add_event(Event({
                 func = function()
-                    PlayLog.log{ type = "changed_sell_cost", card = joker, previous = joker.cost - self.ability.extra, current = joker.cost }
+                    PlayLog.log{ type = "changed_sell_cost", card = joker, previous = joker.sell_cost - self.ability.extra, current = joker.sell_cost }
                     return true
                 end
             }))
@@ -245,13 +245,12 @@ payload = '''
         if consumable.set_cost then
             G.E_MANAGER:add_event(Event({
                 func = function()
-                    PlayLog.log{ type = "changed_sell_cost", card = consumable, previous = consumable.cost - self.ability.extra, current = consumable.cost }
+                    PlayLog.log{ type = "changed_sell_cost", card = consumable, previous = consumable.sell_cost - self.ability.extra, current = consumable.sell_cost }
                     return true
                 end
             }))
         end
     end
-
 '''
 
 # Hallucination

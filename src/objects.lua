@@ -12,16 +12,16 @@ PlayLog.LogType = SMODS.GameObject:extend {
         'key',
         'get_message'
     },
+    group = "generic",
     get_message = function(self, args)
         return "ERROR"
     end,
     inject = function(self, i) end
 }
--- TODO: Add 'group' to group log types for the config
--- TODO: Add localization for the types/groups for the config
 
 PlayLog.LogType {
     key = "message",
+    group = "generic",
     get_message = function(self, args)
         return args.text
     end
@@ -126,6 +126,7 @@ end
 
 PlayLog.LogType {
     key = "started",
+    group = "player_actions",
     get_message = function(self, args)
         if args.challenge then
             return PlayLog.localize("started_challenge",
@@ -140,6 +141,7 @@ PlayLog.LogType {
 
 PlayLog.LogType {
     key = "resume",
+    group = "player_actions",
     get_message = function(self, args)
         return PlayLog.localize("resumed")
     end
@@ -147,6 +149,7 @@ PlayLog.LogType {
 
 PlayLog.LogType {
     key = "selected_blind",
+    group = "player_actions",
     get_message = function(self, args)
         return PlayLog.localize("selected_blind", { PlayLog.format_object(args.blind) })
     end
@@ -154,6 +157,7 @@ PlayLog.LogType {
 
 PlayLog.LogType {
     key = "defeated_blind",
+    group = "player_actions",
     get_message = function(self, args)
         return PlayLog.localize("defeated_blind", { PlayLog.format_object(args.blind) })
     end
@@ -161,6 +165,7 @@ PlayLog.LogType {
 
 PlayLog.LogType {
     key = "cash_out",
+    group = "player_actions",
     get_message = function(self, args)
         return PlayLog.localize("cash_out", { args.amount })
     end
@@ -168,6 +173,7 @@ PlayLog.LogType {
 
 PlayLog.LogType {
     key = "skip_blind",
+    group = "player_actions",
     get_message = function(self, args)
         if args.tag then
             return PlayLog.localize("skip_blind_for",
@@ -179,6 +185,7 @@ PlayLog.LogType {
 
 PlayLog.LogType {
     key = "start_round",
+    group = "player_actions",
     get_message = function(self, args)
         return PlayLog.localize("start_round", { args.round })
     end
@@ -186,6 +193,7 @@ PlayLog.LogType {
 
 PlayLog.LogType {
     key = "start_ante",
+    group = "player_actions",
     get_message = function(self, args)
         if args.modified then
             return PlayLog.localize("ante_modified", { args.ante, args.ante + args.modified })
@@ -196,6 +204,7 @@ PlayLog.LogType {
 
 PlayLog.LogType {
     key = "creates",
+    group = "effects",
     get_message = function(self, args)
         return PlayLog.localize("creates",
             { PlayLog.format_object(args.card), PlayLog.loc_list(PlayLog.format_objects(args.created, "attention")) })
@@ -204,6 +213,7 @@ PlayLog.LogType {
 
 PlayLog.LogType {
     key = "destroys",
+    group = "effects",
     get_message = function(self, args)
         return PlayLog.localize("destroys",
             { PlayLog.format_object(args.card), PlayLog.loc_list(PlayLog.format_objects(args.destroyed, "attention")) })
@@ -212,6 +222,7 @@ PlayLog.LogType {
 
 PlayLog.LogType {
     key = "copies",
+    group = "effects",
     get_message = function(self, args)
         if args.copied_to then
             return PlayLog.localize("copies_into",
@@ -225,6 +236,7 @@ PlayLog.LogType {
 
 PlayLog.LogType {
     key = "added",
+    group = "gamestate",
     get_message = function(self, args)
         if args.area then
             return PlayLog.localize("added_to",
@@ -240,6 +252,7 @@ PlayLog.LogType {
 
 PlayLog.LogType {
     key = "added_to_shop",
+    group = "effects",
     get_message = function(self, args)
         return PlayLog.localize("added_to_shop",
             { PlayLog.format_object(args.card), PlayLog.loc_list(PlayLog.format_objects(args.cards, "attention")) })
@@ -248,6 +261,7 @@ PlayLog.LogType {
 
 PlayLog.LogType {
     key = "converts",
+    group = "effects",
     get_message = function(self, args)
         local conversion = args.conversion
         if args.enhancement then
@@ -267,6 +281,7 @@ PlayLog.LogType {
 
 PlayLog.LogType {
     key = "converts_multiple",
+    group = "effects",
     get_message = function(self, args)
         local conversions = args.conversions or {}
         for i, card in ipairs(args.converted) do
@@ -289,6 +304,7 @@ PlayLog.LogType {
 
 PlayLog.LogType {
     key = "applied",
+    group = "effects",
     get_message = function(self, args)
         local conversion = args.conversion
         if args.edition then
@@ -308,6 +324,7 @@ PlayLog.LogType {
 
 PlayLog.LogType {
     key = "removed_modifier",
+    group = "effects",
     get_message = function(self, args)
         local conversion = args.conversion
         if args.edition then
@@ -328,6 +345,7 @@ PlayLog.LogType {
 
 PlayLog.LogType {
     key = "money",
+    group = "effects",
     get_message = function(self, args)
         if args.amount < 0 then
             return PlayLog.localize("money_taken",
@@ -340,6 +358,7 @@ PlayLog.LogType {
 
 PlayLog.LogType {
     key = "money_altered",
+    group = "gamestate",
     get_message = function(self, args)
         return PlayLog.localize("money_altered", { args.previous, args.current })
     end
@@ -347,6 +366,7 @@ PlayLog.LogType {
 
 PlayLog.LogType {
     key = "noped",
+    group = "effects",
     get_message = function(self, args)
         return PlayLog.localize("noped", { PlayLog.format_object(args.card) })
     end
@@ -354,6 +374,7 @@ PlayLog.LogType {
 
 PlayLog.LogType {
     key = "hand_level_up",
+    group = "gamestate",
     get_message = function(self, args)
         local old_hover = args.old_level_func or 'hand_level_snapshot_old'
         local new_hover = args.new_level_func or 'hand_level_snapshot_new'
@@ -371,6 +392,7 @@ PlayLog.LogType {
 
 PlayLog.LogType {
     key = "leveled_up",
+    group = "effects",
     get_message = function(self, args)
         local hand_list = {}
         if #G.handlist == #args.poker_hands then
@@ -386,6 +408,7 @@ PlayLog.LogType {
 
 PlayLog.LogType {
     key = "leveled_down",
+    group = "effects",
     get_message = function(self, args)
         local hand_list = {}
         if #G.handlist == #args.poker_hands then
@@ -401,6 +424,7 @@ PlayLog.LogType {
 
 PlayLog.LogType {
     key = "change_area_size",
+    group = "effects",
     get_message = function(self, args)
         if args.amount < 0 then
             return PlayLog.localize("change_area_size_neg",
@@ -413,6 +437,7 @@ PlayLog.LogType {
 
 PlayLog.LogType {
     key = "area_size",
+    group = "gamestate",
     get_message = function(self, args)
         return PlayLog.localize("area_size",
             { PlayLog.get_area_name(args.area), args.old_size, args.new_size })
@@ -421,6 +446,7 @@ PlayLog.LogType {
 
 PlayLog.LogType {
     key = "sell",
+    group = "player_actions",
     get_message = function(self, args)
         return PlayLog.localize("sell", { PlayLog.format_object(args.card), args.amount })
     end
@@ -428,6 +454,7 @@ PlayLog.LogType {
 
 PlayLog.LogType {
     key = "buy",
+    group = "player_actions",
     get_message = function(self, args)
         return PlayLog.localize("buy", { PlayLog.format_object(args.card), args.amount })
     end
@@ -435,6 +462,7 @@ PlayLog.LogType {
 
 PlayLog.LogType {
     key = "use",
+    group = "player_actions",
     get_message = function(self, args)
         return PlayLog.localize("used", { PlayLog.format_object(args.card) })
     end
@@ -442,6 +470,7 @@ PlayLog.LogType {
 
 PlayLog.LogType {
     key = "booster_opened",
+    group = "player_actions",
     get_message = function(self, args)
         return PlayLog.localize("booster_opened",
             { PlayLog.format_object(args.booster), PlayLog.loc_list(PlayLog.format_objects(args.cards, "attention")) })
@@ -450,6 +479,7 @@ PlayLog.LogType {
 
 PlayLog.LogType {
     key = "booster_skipped",
+    group = "player_actions",
     get_message = function(self, args)
         return PlayLog.localize("booster_skipped", { PlayLog.format_object(args.booster) })
     end
@@ -457,6 +487,7 @@ PlayLog.LogType {
 
 PlayLog.LogType {
     key = "win",
+    group = "player_actions",
     get_message = function(self, args)
         return PlayLog.localize("win")
     end
@@ -464,6 +495,7 @@ PlayLog.LogType {
 
 PlayLog.LogType {
     key = "lost",
+    group = "player_actions",
     get_message = function(self, args)
         return PlayLog.localize(args.endless and "lost_endless" or "lost")
     end
@@ -471,6 +503,7 @@ PlayLog.LogType {
 
 PlayLog.LogType {
     key = "options",
+    group = "player_actions",
     get_message = function(self, args)
         return PlayLog.localize("mod_options", { args.mod, PlayLog.loc_list(args.options) })
     end
@@ -478,6 +511,7 @@ PlayLog.LogType {
 
 PlayLog.LogType {
     key = "reroll_shop",
+    group = "player_actions",
     get_message = function(self, args)
         return PlayLog.localize("reroll_shop",
             { args.amount, PlayLog.loc_list(PlayLog.format_objects(args.cards, "attention")) })
@@ -486,6 +520,7 @@ PlayLog.LogType {
 
 PlayLog.LogType {
     key = "reroll_shop_into",
+    group = "player_actions",
     get_message = function(self, args)
         return PlayLog.localize("reroll_shop_into",
             { PlayLog.loc_list(PlayLog.format_objects(args.cards, "attention")) })
@@ -494,6 +529,7 @@ PlayLog.LogType {
 
 PlayLog.LogType {
     key = "starting_shop",
+    group = "player_actions",
     get_message = function(self, args)
         return PlayLog.localize("starting_shop",
             { PlayLog.loc_list(PlayLog.format_objects(args.cards, "attention")) })
@@ -502,6 +538,7 @@ PlayLog.LogType {
 
 PlayLog.LogType {
     key = "ending_shop",
+    group = "player_actions",
     get_message = function(self, args)
         return PlayLog.localize("ending_shop")
     end
@@ -509,6 +546,7 @@ PlayLog.LogType {
 
 PlayLog.LogType {
     key = "tag_applied",
+    group = "gamestate",
     get_message = function(self, args)
         return PlayLog.localize("tag_applied", { PlayLog.format_object(args.tag) })
     end
@@ -516,6 +554,7 @@ PlayLog.LogType {
 
 PlayLog.LogType {
     key = "reroll_boss",
+    group = "player_actions",
     get_message = function(self, args)
         return PlayLog.localize("reroll_boss",
             { PlayLog.format_object(args.old_boss), PlayLog.format_object(args.new_boss) })
@@ -524,6 +563,7 @@ PlayLog.LogType {
 
 PlayLog.LogType {
     key = "hand_played",
+    group = "scoring",
     get_message = function(self, args)
         return PlayLog.localize("hand_played",
             { localize(args.poker_hand, "poker_hands"), PlayLog.loc_list(PlayLog.format_objects(args.cards,
@@ -533,6 +573,7 @@ PlayLog.LogType {
 
 PlayLog.LogType {
     key = "hand_played_as",
+    group = "scoring",
     get_message = function(self, args)
         return PlayLog.localize("hand_played_as", { localize(args.poker_hand, "poker_hands") })
     end
@@ -540,6 +581,7 @@ PlayLog.LogType {
 
 PlayLog.LogType {
     key = "hand_scored",
+    group = "scoring",
     get_message = function(self, args)
         return PlayLog.localize("hand_scored", { args.amount, args.score, args.to_beat })
     end
@@ -547,6 +589,7 @@ PlayLog.LogType {
 
 PlayLog.LogType {
     key = "discarded",
+    group = "player_actions",
     get_message = function(self, args)
         return PlayLog.localize("discarded",
             { PlayLog.loc_list(PlayLog.format_objects(args.cards, "attention")) })
@@ -555,6 +598,7 @@ PlayLog.LogType {
 
 PlayLog.LogType {
     key = "hand_drawn",
+    group = "gamestate",
     get_message = function(self, args)
         return PlayLog.localize("hand_drawn",
             { PlayLog.loc_list(PlayLog.format_objects(args.cards, "attention")) })
@@ -563,6 +607,7 @@ PlayLog.LogType {
 
 PlayLog.LogType {
     key = "score_to_beat",
+    group = "scoring",
     get_message = function(self, args)
         return PlayLog.localize("score_to_beat", { args.amount })
     end
@@ -570,6 +615,7 @@ PlayLog.LogType {
 
 PlayLog.LogType {
     key = "debuffed_hand",
+    group = "gamestate",
     get_message = function(self, args)
         return PlayLog.localize("debuffed_hand", { localize(args.poker_hand, "poker_hands") })
     end
@@ -577,6 +623,7 @@ PlayLog.LogType {
 
 PlayLog.LogType {
     key = "selected_card",
+    group = "effects",
     get_message = function(self, args)
         return PlayLog.localize("selected_card",
             { PlayLog.format_object(args.card), PlayLog.loc_list(PlayLog.format_objects(args.cards, "attention")) })
@@ -585,6 +632,7 @@ PlayLog.LogType {
 
 PlayLog.LogType {
     key = "changed_sell_cost",
+    group = "effects",
     get_message = function(self, args)
         return PlayLog.localize("changed_sell_cost",
             { PlayLog.format_object(args.card), args.previous, args.current })
@@ -593,6 +641,7 @@ PlayLog.LogType {
 
 PlayLog.LogType {
     key = "target_changed",
+    group = "effects",
     get_message = function(self, args)
         return PlayLog.localize("target_changed",
             { PlayLog.format_object(args.card), PlayLog.loc_list(PlayLog.format_objects(args.targets, "attention")) })
@@ -601,6 +650,7 @@ PlayLog.LogType {
 
 PlayLog.LogType {
     key = "blind_disabled",
+    group = "effects",
     get_message = function(self, args)
         return PlayLog.localize("blind_disabled",
             { PlayLog.format_object(args.blind) })
@@ -609,6 +659,7 @@ PlayLog.LogType {
 
 PlayLog.LogType {
     key = "saved",
+    group = "effects",
     get_message = function(self, args)
         return PlayLog.localize("saved",
             { PlayLog.format_object(args.card) })
@@ -616,7 +667,26 @@ PlayLog.LogType {
 }
 
 PlayLog.LogType {
+    key = "swap",
+    group = "scoring",
+    get_message = function(self, args)
+        return PlayLog.localize("swap",
+            { PlayLog.format_object(args.card) })
+    end
+}
+
+PlayLog.LogType {
+    key = "balance",
+    group = "scoring",
+    get_message = function(self, args)
+        return PlayLog.localize("balance",
+            { PlayLog.format_object(args.card) })
+    end
+}
+
+PlayLog.LogType {
     key = "eaten",
+    group = "effects",
     get_message = function(self, args)
         return PlayLog.localize(args.food_type or "eaten",
             { PlayLog.format_object(args.card) })
@@ -625,6 +695,7 @@ PlayLog.LogType {
 
 PlayLog.LogType {
     key = "rental",
+    group = "effects",
     get_message = function(self, args)
         return PlayLog.localize("rental",
             { PlayLog.format_object(args.card), args.amount })
@@ -633,6 +704,7 @@ PlayLog.LogType {
 
 PlayLog.LogType {
     key = "perishable",
+    group = "effects",
     get_message = function(self, args)
         return PlayLog.localize("perishable",
             { PlayLog.format_object(args.card), args.amount })
@@ -641,6 +713,7 @@ PlayLog.LogType {
 
 PlayLog.LogType {
     key = "perished",
+    group = "effects",
     get_message = function(self, args)
         return PlayLog.localize("perished",
             { PlayLog.format_object(args.card) })
@@ -708,6 +781,7 @@ end
 
 PlayLog.LogType {
     key = "scale",
+    group = "scoring",
     get_message = function(self, args)
         if not args.previous or not args.current then
             return PlayLog.localize("scale_by",
@@ -721,6 +795,7 @@ PlayLog.LogType {
 
 PlayLog.LogType {
     key = "reset",
+    group = "scoring",
     get_message = function(self, args)
         return PlayLog.localize("reset",
             { PlayLog.format_object(args.card) })
@@ -729,6 +804,7 @@ PlayLog.LogType {
 
 PlayLog.LogType {
     key = "score",
+    group = "scoring",
     get_message = function(self, args)
         local card = args.card or args.scored_card
         card = card == G.GAME.blind.children.animatedSprite and G.GAME.blind or card
@@ -759,6 +835,7 @@ PlayLog.LogType {
 
 PlayLog.LogType {
     key = "blueprint",
+    group = "effects",
     get_message = function(self, args)
         return PlayLog.localize("blueprint",
             { PlayLog.format_object(args.card), PlayLog.format_object(args.copied) })
@@ -767,6 +844,7 @@ PlayLog.LogType {
 
 PlayLog.LogType {
     key = "added_score",
+    group = "scoring",
     get_message = function(self, args)
         if args.mult then
             if args.mult < 1 then
@@ -787,6 +865,7 @@ PlayLog.LogType {
 
 PlayLog.LogType {
     key = "added_blind_size",
+    group = "scoring",
     get_message = function(self, args)
         if args.mult then
             if args.mult < 1 then

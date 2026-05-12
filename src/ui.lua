@@ -1174,7 +1174,7 @@ local function pl_draw_config_content(layout)
     local mx, my = love.mouse.getPosition()
     --title
     love.graphics.setColor(pl_col('header_text', 0.95, 0.73, 0.25, 1))
-    love.graphics.print("SELECT THEME", cx, cy + 4, nil, 0.80, 0.80)
+    love.graphics.print(PlayLog.localize("select_theme", nil, "playlog_ui"), cx, cy + 4, nil, 0.80, 0.80)
     G.playlog_theme_rects = {}
     for i, theme in ipairs(PLAYLOG_THEMES) do
         local col                = (i - 1) % 2
@@ -1200,7 +1200,7 @@ local function pl_draw_config_content(layout)
         love.graphics.setLineWidth(1)
         local ht = theme.header_text
         love.graphics.setColor(ht[1], ht[2], ht[3], 1)
-        love.graphics.print(theme.name, bx + 8, by + 15, nil, 0.82, 0.82)
+        love.graphics.print(PlayLog.localize(theme.name, nil, "playlog_themes"), bx + 8, by + 15, nil, 0.82, 0.82)
         if active then
             love.graphics.setColor(b[1], b[2], b[3], 0.9)
             love.graphics.circle("fill", bx + btn_w - 10, by + btn_h - 10, 4)
@@ -1219,7 +1219,7 @@ local function pl_draw_config_content(layout)
     love.graphics.setColor(br1, br2, br3, time_btn_hov and 0.75 or 0.35)
     love.graphics.rectangle("line", cx, time_cfg_y, time_btn_w, time_btn_h, 4, 4)
     love.graphics.setColor(0.65, 0.65, 0.65, 1)
-    love.graphics.print("TIME FORMAT", cx + 8, time_cfg_y + 2, nil, 0.62, 0.62)
+    love.graphics.print(PlayLog.localize("time_format", nil, "playlog_ui"), cx + 8, time_cfg_y + 2, nil, 0.62, 0.62)
     love.graphics.setColor(1, 1, 1, 0.82)
     love.graphics.print("< " .. sample_text .. " >", cx + 8, time_cfg_y + 13, nil, 0.72, 0.72)
     G.playlog_time_format_rect = { x = cx, y = time_cfg_y, w = time_btn_w, h = time_btn_h }
@@ -1236,7 +1236,7 @@ local function pl_draw_config_content(layout)
     love.graphics.setColor(br1, br2, br3, alpha_hov and 0.75 or 0.35)
     love.graphics.rectangle("line", cx, alpha_cfg_y, alpha_btn_w, alpha_btn_h, 4, 4)
     love.graphics.setColor(0.65, 0.65, 0.65, 1)
-    love.graphics.print("LOG OPACITY", cx + 8, alpha_cfg_y + 2, nil, 0.62, 0.62)
+    love.graphics.print(PlayLog.localize("log_opacity", nil, "playlog_ui"), cx + 8, alpha_cfg_y + 2, nil, 0.62, 0.62)
     love.graphics.setColor(1, 1, 1, 0.82)
     love.graphics.print(tostring(alpha_percent) .. "%", cx + alpha_btn_w - 44, alpha_cfg_y + 2, nil, 0.62, 0.62)
     local alpha_bar_x = cx + 8
@@ -1260,16 +1260,17 @@ local function pl_draw_config_content(layout)
     love.graphics.setColor(br1, br2, br3, log_types_hov and 0.75 or 0.35)
     love.graphics.rectangle("line", cx, log_types_btn_y, cw, log_types_btn_h, 4, 4)
     love.graphics.setColor(0.65, 0.65, 0.65, 1)
-    love.graphics.print("LOG TYPES", cx + 8, log_types_btn_y + 2, nil, 0.62, 0.62)
+    love.graphics.print(PlayLog.localize("log_types", nil, "playlog_ui"), cx + 8, log_types_btn_y + 2, nil, 0.62, 0.62)
     love.graphics.setColor(1, 1, 1, 0.82)
-    love.graphics.print("Open selector", cx + 8, log_types_btn_y + 13, nil, 0.72, 0.72)
+    love.graphics.print(PlayLog.localize("open_log_type_selection", nil, "playlog_ui"), cx + 8, log_types_btn_y + 13, nil,
+        0.72, 0.72)
     G.playlog_log_types_btn_rect = { x = cx, y = log_types_btn_y, w = cw, h = log_types_btn_h }
 
     --hex input section
     local rows = math.ceil(#PLAYLOG_THEMES / 2)
     local hex_y = log_types_btn_y + log_types_btn_h + 8
     love.graphics.setColor(pl_col('header_text', 0.95, 0.73, 0.25, 0.7))
-    love.graphics.print("CUSTOM COLORS  (click swatch to open picker)", cx, hex_y, nil, 0.68, 0.68)
+    love.graphics.print(PlayLog.localize("custom_colours", nil, "playlog_ui"), cx, hex_y, nil, 0.68, 0.68)
     hex_y = hex_y + 18
     G.playlog_hex_rects = {}
     local field_h = 28
@@ -1296,7 +1297,8 @@ local function pl_draw_config_content(layout)
         love.graphics.setColor(br1, br2, br3, 0.25)
         love.graphics.rectangle("line", cx + swatch_w + 4, fy, cw - swatch_w - 4, field_h, 4, 4)
         love.graphics.setColor(0.6, 0.6, 0.6, 1)
-        love.graphics.print(field.label, cx + swatch_w + 8, fy + 2, nil, 0.62, 0.62)
+        love.graphics.print(PlayLog.localize("colour_" .. field.key, nil, "playlog_ui"), cx + swatch_w + 8, fy + 2, nil,
+            0.62, 0.62)
         love.graphics.setColor(1, 1, 1, 0.75)
         love.graphics.print("#" .. pl_rgb_to_hex(cur_col), cx + swatch_w + 8, fy + 13, nil, 0.78, 0.78)
         G.playlog_hex_rects[i] = {
@@ -1334,7 +1336,8 @@ local function pl_draw_button(layout)
     love.graphics.setLineWidth(1)
     --icon
     love.graphics.setColor(hovered and 0.1 or 1, hovered and 0.1 or 1, hovered and 0.1 or 1, 1)
-    love.graphics.print("LOG", layout.button_x + 4, layout.button_y + 10, nil, 0.72, 0.72)
+    love.graphics.print(PlayLog.localize("log_button", nil, "playlog_ui"), layout.button_x + 4, layout.button_y + 10, nil,
+        0.72, 0.72)
 end
 
 local function pl_draw_panel(layout)
@@ -1363,7 +1366,8 @@ local function pl_draw_panel(layout)
         layout.panel_x + layout.panel_w - 10, layout.panel_y + layout.header_h + 2)
     --header title
     love.graphics.setColor(pl_col('header_text', 0.95, 0.73, 0.25, 1))
-    love.graphics.print("PLAY LOG", layout.panel_x + 14, layout.panel_y + 7, nil, 0.82, 0.82)
+    love.graphics.print(PlayLog.localize("header", nil, "playlog_ui"), layout.panel_x + 14, layout.panel_y + 7, nil, 0.82,
+        0.82)
     --drag handle dots
     local hdr_cx = layout.panel_x + layout.panel_w * 0.5
     local hdr_cy = layout.panel_y + layout.header_h * 0.5
@@ -1411,19 +1415,21 @@ local function pl_draw_panel(layout)
     love.graphics.setColor(pl_col('border', 0.95, 0.73, 0.25, cfg_open and 0.9 or (cfg_hov and 0.7 or 0.35)))
     love.graphics.rectangle("fill", layout.cfg_btn_x, layout.cfg_btn_y, layout.cfg_btn_w, layout.cfg_btn_h, 4, 4)
     love.graphics.setColor(0, 0, 0, cfg_open and 0.8 or 0.6)
-    love.graphics.print(cfg_open and "LOG" or "CFG", layout.cfg_btn_x + 2, layout.cfg_btn_y + 2, nil, 0.70, 0.70)
+    love.graphics.print(PlayLog.localize(cfg_open and "log_button" or "config_button", nil, "playlog_ui"),
+        layout.cfg_btn_x + 2, layout.cfg_btn_y + 2, nil, 0.70, 0.70)
     love.graphics.setColor(pl_col('border', 0.95, 0.73, 0.25, copy_hov and 0.8 or 0.45))
     love.graphics.rectangle("fill", layout.copy_btn_x, layout.copy_btn_y, layout.copy_btn_w, layout.copy_btn_h, 4, 4)
     love.graphics.setColor(0, 0, 0, 0.7)
     local copied = (G.playlog_copy_feedback_t or 0) > 0
-    love.graphics.print(copied and "OK" or "CPY", layout.copy_btn_x + 4, layout.copy_btn_y + 2, nil, 0.66, 0.66)
+    love.graphics.print(PlayLog.localize(copied and "copy_ok" or "copy", nil, "playlog_ui"), layout.copy_btn_x + 4,
+        layout.copy_btn_y + 2, nil, 0.66, 0.66)
     if copied then
         love.graphics.setColor(pl_col('header_text', 0.95, 0.73, 0.25, 0.9))
         local copied_scale = 0.60
-        local copied_text = "COPIED"
+        local copied_text = PlayLog.localize("copied", nil, "playlog_ui")
         local font = love.graphics.getFont()
         local copied_w = font:getWidth(copied_text) * copied_scale
-        local title_w = font:getWidth("PLAY LOG") * 0.82
+        local title_w = font:getWidth(PlayLog.localize("header", nil, "playlog_ui")) * 0.82
         local lane_pad = 8
         local dots_half_span = 18
         local left_min_x = layout.panel_x + 14 + title_w + lane_pad
@@ -2070,10 +2076,10 @@ function love.mousepressed(x, y, button, istouch, presses)
                     handled_cfg_click = true
                 end
                 if (not handled_cfg_click) and G.playlog_log_types_btn_rect and pl_point_in_rect(x, y,
-                    G.playlog_log_types_btn_rect.x,
-                    G.playlog_log_types_btn_rect.y,
-                    G.playlog_log_types_btn_rect.w,
-                    G.playlog_log_types_btn_rect.h) then
+                        G.playlog_log_types_btn_rect.x,
+                        G.playlog_log_types_btn_rect.y,
+                        G.playlog_log_types_btn_rect.w,
+                        G.playlog_log_types_btn_rect.h) then
                     G.playlog_picker = { mode = 'log_types', scroll = 0 }
                     handled_cfg_click = true
                 end

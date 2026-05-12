@@ -421,8 +421,8 @@ end
 ---@param key string
 ---@param vars table?
 ---@return string
-function PlayLog.localize(key, vars)
-    local text = G.localization.misc.playlog[key]
+function PlayLog.localize(key, vars, table)
+    local text = G.localization.misc[table or "playlog"][key]
     if not text then return "ERROR" end
     vars = vars or {}
 
