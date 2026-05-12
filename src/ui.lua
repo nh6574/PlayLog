@@ -9,6 +9,17 @@ local playlog_mousemoved_ref = nil
 local pl_cursor_cache = {}
 local pl_cursor_current = nil
 local pl_log_store = PlayLog.log_store
+local pl_raw_mouse_pos = love.mouse.getPosition
+love.mouse.getPosition = function()
+    local rx, ry = pl_raw_mouse_pos()
+    if G and (G.playlog_slide or 0) > 0.2 and G.playlog_panel_rect then
+        local r = G.playlog_panel_rect
+        if rx >= r.x and rx <= r.x + r.w and ry >= r.y and ry <= r.y + r.h then
+            return -1, -1
+        end
+    end
+    return rx, ry
+end
 
 local function pl_set_cursor(cursor_name)
     if pl_cursor_current == cursor_name then return end
@@ -1230,7 +1241,7 @@ local function pl_draw_config_content(layout)
     local btn_w  = math.floor((cw - 10) / 2)
     local btn_h  = 40
     local gap    = 6
-    local mx, my = love.mouse.getPosition()
+    local mx, my = pl_raw_mouse_pos()
     --title
     love.graphics.setColor(pl_col('header_text', 0.95, 0.73, 0.25, 1))
     love.graphics.print(PlayLog.localize("select_theme", nil, "playlog_ui"), cx, cy + 4, nil, 0.80, 0.80)
@@ -1389,7 +1400,7 @@ local function pl_draw_config_content(layout)
 end
 
 local function pl_draw_button(layout)
-    local mx, my = love.mouse.getPosition()
+    local mx, my = pl_raw_mouse_pos()
     local hovered = not G.OVERLAY_MENU and pl_point_in_rect(mx, my, layout.button_x, layout.button_y, layout.button_w, layout.button_h) 
     local is_open = G.playlog_visible
     --shadow
@@ -1447,7 +1458,7 @@ local function pl_draw_panel(layout)
     --drag handle dots
     local hdr_cx = layout.panel_x + layout.panel_w * 0.5
     local hdr_cy = layout.panel_y + layout.header_h * 0.5
-    local mx0, my0 = love.mouse.getPosition()
+    local mx0, my0 = pl_raw_mouse_pos()
     local header_hov = pl_point_in_rect(mx0, my0, layout.panel_x, layout.panel_y, layout.panel_w, layout.header_h)
         and not pl_point_in_rect(mx0, my0, layout.cfg_btn_x, layout.cfg_btn_y, layout.cfg_btn_w, layout.cfg_btn_h)
         and not pl_point_in_rect(mx0, my0, layout.copy_btn_x, layout.copy_btn_y, layout.copy_btn_w, layout.copy_btn_h)
@@ -1547,7 +1558,7 @@ local function pl_draw_panel(layout)
     local max_shift = pl_get_max_shift(layout)
     local shift = pl_clamp(G.playlog_scroll_shift or max_shift, 0, max_shift)
     G.playlog_scroll_shift = max_shift > 0 and shift or nil
-    local mx, my = love.mouse.getPosition()
+    local mx, my = pl_raw_mouse_pos()
     local hovered_tooltip = nil
     local y = layout.content_y
     local row_idx = 0
@@ -1916,7 +1927,7 @@ end
 function PlayLog.draw()
     if not pl_is_run_active() then return end
     local layout = pl_get_layout()
-
+    G.playlog_panel_rect = { x = layout.panel_x, y = layout.panel_y, w = layout.panel_w, h = layout.panel_h }
     if (G.playlog_slide or 0) > 0.01 then
         pl_draw_panel(layout)
     else
@@ -2349,7 +2360,7 @@ function love.wheelmoved(x, y)
     if not pl_is_run_active() or G.OVERLAY_MENU then
         return playlog_wheelmoved_ref(x, y)
     end
-    local mx, my = love.mouse.getPosition()
+    local mx, my = pl_raw_mouse_pos()
     local layout = pl_get_layout()
     local pk = G.playlog_picker
     if G.playlog_visible and pk and pk.mode == 'log_types' and pk._list_rect
