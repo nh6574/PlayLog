@@ -42,9 +42,9 @@ return {
         },
         playlog_types = {
             hand_played = "Hand Played",
-            added_blind_size = "Blind Size Added",
-            added_score = "Total score added",
-            blueprint = "Effect copied",
+            added_blind_size = "Blind Size changed",
+            added_score = "Total score changed",
+            blueprint = "Ability copied",
             score = "Card scored",
             defeated_blind = "Blind Defeated",
             buy = "Card bought",
