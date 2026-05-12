@@ -386,8 +386,8 @@ SMODS.current_mod.calculate = function(self, context)
         }))
     end
 
-    if context.hand_drawn then
-        local cards = context.hand_drawn
+    if context.hand_drawn or context.other_drawn then
+        local cards = context.hand_drawn or context.other_drawn
         G.E_MANAGER:add_event(Event({
             func = function()
                 PlayLog.log { type = "hand_drawn", cards = cards }

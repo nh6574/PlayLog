@@ -677,26 +677,32 @@ local function pl_draw_hover_tooltip(hovered)
 
         if type(full_UI_table.name) == "string" then full_UI_table.name = nil end
 
+        local no_name
+
         if card_snapshot and card_snapshot.suit and card_snapshot.value then
-            local suit_key = tostring(card_snapshot.suit or '')
-            local rank_text = localize(card_snapshot.value, 'ranks')
-            local suit_text = localize(card_snapshot.suit, 'suits_plural')
-            local full_name = PlayLog.localize('rank_of_suit', { rank_text, suit_text })
-            local suit_colour = G and G.C and G.C.SUITS and G.C.SUITS[suit_key]
-            full_UI_table.name = {
-                {
-                    n = G.UIT.T,
-                    config = {
-                        text = full_name,
-                        scale = 0.5,
-                        colour = suit_colour or G.C.WHITE,
-                        vert = false,
+            if not card_snapshot.should_hide_front then
+                local suit_key = tostring(card_snapshot.suit or '')
+                local rank_text = localize(card_snapshot.value, 'ranks')
+                local suit_text = localize(card_snapshot.suit, 'suits_plural')
+                local full_name = PlayLog.localize('rank_of_suit', { rank_text, suit_text })
+                local suit_colour = G and G.C and G.C.SUITS and G.C.SUITS[suit_key]
+                full_UI_table.name = {
+                    {
+                        n = G.UIT.T,
+                        config = {
+                            text = full_name,
+                            scale = 0.5,
+                            colour = suit_colour or G.C.WHITE,
+                            vert = false,
+                        }
                     }
                 }
-            }
+            else
+                no_name = true
+            end
         end
 
-        if not full_UI_table.name or type(full_UI_table.name) ~= 'table' then
+        if not no_name and not full_UI_table.name or type(full_UI_table.name) ~= 'table' then
             if is_seal then
                 if type(center.name) == 'string' and center.name ~= '' then
                     name[#name + 1] = { { n = G.UIT.T, config = { text = center.name, scale = 0.5, colour = G.C.WHITE, vert = false } } }
@@ -738,15 +744,17 @@ local function pl_draw_hover_tooltip(hovered)
 
         local card_nodes
         if not is_func then
-            card_nodes = {
-                blind_name or (type(full_UI_table.name) == 'table' and full_UI_table.name and {
-                    n = G.UIT.R,
-                    config = { align = "cm", padding = 0.07, r = 0.1, colour = G.C.CLEAR },
-                    nodes = full_UI_table.name
-                } or nil) or desc_from_rows(name, true),
-                blind_desc or desc_from_rows(description)
-            }
+            card_nodes = {}
+            if not no_name then
+                card_nodes[#card_nodes + 1] = blind_name or
+                    (type(full_UI_table.name) == 'table' and full_UI_table.name and {
+                        n = G.UIT.R,
+                        config = { align = "cm", padding = 0.07, r = 0.1, colour = G.C.CLEAR },
+                        nodes = full_UI_table.name
+                    } or nil) or desc_from_rows(name, true)
+            end
 
+            card_nodes[#card_nodes + 1] = blind_desc or desc_from_rows(description)
 
             if full_UI_table.joy_consumable then -- supporting my own mod :3
                 table.insert(card_nodes, 2, desc_from_rows(full_UI_table.joy_consumable))

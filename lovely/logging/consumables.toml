@@ -135,7 +135,7 @@ match_indent = true
 payload = '''
 local playlog_card = G.hand.highlighted[i]
 PlayLog.temp.strength_cards = PlayLog.temp.strength_cards or {}
-table.insert(PlayLog.temp.strength_cards, PlayLog.localize_rank_of_suit(playlog_card.base.value, playlog_card.base.suit))
+table.insert(PlayLog.temp.strength_cards, PlayLog.format_object(playlog_card))
 
 assert(SMODS.modify_rank(G.hand.highlighted[i], 1))
 

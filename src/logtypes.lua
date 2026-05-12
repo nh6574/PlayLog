@@ -65,7 +65,7 @@ local function format_card(card)
     if card.is and card:is(Blind) then return format_center_from_key(card.config.blind.key) end
     if type(card) ~= "table" or not (card.config or {}).center then return "ERROR" end
     if card.playing_card or card.config.center.set == "Default" or card.config.center.set == "Enhanced" then
-        return PlayLog.localize_rank_of_suit(card.base.value, card.base.suit)
+        return PlayLog.localize_rank_of_suit(card.base.value, card.base.suit, card)
     end
 
     local center = card.config.center

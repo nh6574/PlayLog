@@ -253,6 +253,7 @@ function PlayLog.store_card_tooltip_payload(card)
         front_key = pl_get_card_front_key(card),
         edition_key = pl_get_card_edition_key(card),
         seal_key = pl_get_card_seal_key(card),
+        should_hide_front = card:should_hide_front()
     }
     return pl_store_payload('playlog_card_snapshot', snapshot)
 end
@@ -449,10 +450,15 @@ end
 ---@param rank string rank key (value)
 ---@param suit string suit key
 ---@return string
-function PlayLog.localize_rank_of_suit(rank, suit)
-    local rank_text = localize(rank, 'ranks')
-    local suit_text = localize(suit, 'suits_plural')
-    local full_text = PlayLog.localize("rank_of_suit", { rank_text, suit_text })
+function PlayLog.localize_rank_of_suit(rank, suit, card)
+    if card and card.config.center_key == "m_stone" then return localize { type = "name_text", set = "Enhanced", key = "m_stone" } end
+    if card and card:should_hide_front() then return PlayLog.localize("playing_card") end
+    local rank_text = PlayLog.config.shorten_playing_cards and SMODS.Ranks[rank].card_key or localize(rank, 'ranks')
+    local suit_text = PlayLog.config.shorten_playing_cards and SMODS.Suits[suit].card_key
+        or localize(suit, 'suits_plural')
+    rank_text = rank_text == "T" and 10 or rank_text
+    local full_text = PlayLog.config.shorten_playing_cards and (rank_text .. suit_text) or
+        PlayLog.localize("rank_of_suit", { rank_text, suit_text })
     local suit_key = tostring(suit or ''):lower()
     if suit_key ~= '' then
         return "{C:" .. suit_key .. "}" .. tostring(full_text) .. "{}"

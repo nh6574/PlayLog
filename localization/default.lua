@@ -118,6 +118,7 @@ return {
             separator = "#1#, #2#",
             end_separator = "#1# and #2#",
             rank_of_suit = "#1# of #2#",
+            playing_card = "Playing Card",
 
             -- Areas
             joker_area = "joker slots",
