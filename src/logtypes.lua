@@ -787,9 +787,15 @@ PlayLog.LogType {
             return PlayLog.localize("scale_by",
                 { PlayLog.format_object(args.card), pl_format_score_value(args.amount, args.effect) })
         end
+        local previous = args.previous
+        local current = args.current
+        if args.effect == "extra_value" then
+            previous = math.max(1, math.floor(args.card.cost / 2)) + args.previous
+            current = args.card.sell_cost
+        end
         return PlayLog.localize("scale",
             { PlayLog.format_object(args.card),
-                pl_format_score_value(args.previous, args.effect), pl_format_score_value(args.current, args.effect) })
+                pl_format_score_value(previous, args.effect), pl_format_score_value(current, args.effect) })
     end
 }
 
