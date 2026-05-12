@@ -12,7 +12,7 @@ local pl_log_store = PlayLog.log_store
 local pl_raw_mouse_pos = love.mouse.getPosition
 love.mouse.getPosition = function()
     local rx, ry = pl_raw_mouse_pos()
-    if G and (G.playlog_slide or 0) > 0.2 and G.playlog_panel_rect then
+    if G and not G.OVERLAY_MENU and (G.playlog_slide or 0) > 0.2 and G.playlog_panel_rect then
         local r = G.playlog_panel_rect
         if rx >= r.x and rx <= r.x + r.w and ry >= r.y and ry <= r.y + r.h then
             return -1, -1
