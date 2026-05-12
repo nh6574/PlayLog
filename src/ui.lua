@@ -33,6 +33,43 @@ local function pl_clamp(value, minv, maxv)
     return value
 end
 
+local function pl_get_slide_side()
+    local side = PlayLog.config and PlayLog.config.panel_slide_side or nil
+    if side == 'left' or side == 'right' or side == 'top' or side == 'bottom' then
+        return side
+    end
+    return 'right'
+end
+
+local function pl_get_nearest_slide_side(panel_x, panel_y, panel_w, panel_h, screen_w, screen_h)
+    local left_dist = panel_x
+    local right_dist = screen_w - (panel_x + panel_w)
+    local top_dist = panel_y
+    local bottom_dist = screen_h - (panel_y + panel_h)
+    local nearest_side = 'left'
+    local nearest_dist = left_dist
+    if right_dist < nearest_dist then
+        nearest_side = 'right'
+        nearest_dist = right_dist
+    end
+    if top_dist < nearest_dist then
+        nearest_side = 'top'
+        nearest_dist = top_dist
+    end
+    if bottom_dist < nearest_dist then
+        nearest_side = 'bottom'
+    end
+    return nearest_side
+end
+
+local function pl_get_default_open_panel_pos(sw, sh, panel_w, panel_h)
+    local x = sw - panel_w - 18
+    local y = math.max(10, math.floor(sh * 0.22))
+    x = pl_clamp(x, 0, sw - panel_w)
+    y = pl_clamp(y, 0, sh - panel_h)
+    return x, y
+end
+
 local function pl_plain_from_segments(segments)
     return pl_log_store.plain_from_segments(segments)
 end
@@ -876,11 +913,25 @@ local function pl_get_layout()
     local raw_panel_h = pl_clamp(tonumber(PlayLog.config.panel_h) or math.min(420, math.floor(sh * 0.70)), min_h, max_h)
     local panel_h = pl_snap_panel_height(raw_panel_h, min_h, max_h)
     local slide = G.playlog_slide or 0
-    local slide_offset = (1 - slide) * (panel_w + 20)
-    local panel_x = math.floor(sw - panel_w - 18 + slide_offset) + (G.playlog_drag_dx or 0)
-    local panel_y = math.max(10, math.floor(sh * 0.22)) + (G.playlog_drag_dy or 0)
-    panel_x = pl_clamp(panel_x, 0, sw - panel_w)
-    panel_y = pl_clamp(panel_y, 0, sh - panel_h)
+    local slide_side = pl_get_slide_side()
+    local default_x, default_y = pl_get_default_open_panel_pos(sw, sh, panel_w, panel_h)
+    local target_x = pl_clamp(default_x + (G.playlog_drag_dx or 0), 0, sw - panel_w)
+    local target_y = pl_clamp(default_y + (G.playlog_drag_dy or 0), 0, sh - panel_h)
+    local hidden_x = target_x
+    local hidden_y = target_y
+    if slide_side == 'left' then
+        hidden_x = -panel_w - 20
+    elseif slide_side == 'right' then
+        hidden_x = sw + 20
+    elseif slide_side == 'top' then
+        hidden_y = -panel_h - 20
+    elseif slide_side == 'bottom' then
+        hidden_y = sh + 20
+    end
+    local panel_x = hidden_x + (target_x - hidden_x) * slide
+    local panel_y = hidden_y + (target_y - hidden_y) * slide
+    panel_x = pl_clamp(panel_x, -panel_w - 20, sw + 20)
+    panel_y = pl_clamp(panel_y, -panel_h - 20, sh + 20)
     local header_h = 28
     local content_x = panel_x + 14
     local content_y = panel_y + header_h + 10
@@ -1274,9 +1325,25 @@ local function pl_draw_config_content(layout)
         0.72, 0.72)
     G.playlog_log_types_btn_rect = { x = cx, y = log_types_btn_y, w = cw, h = log_types_btn_h }
 
+    local shorten_btn_y = log_types_btn_y + log_types_btn_h + 6
+    local shorten_btn_h = 30
+    local shorten_hov = pl_point_in_rect(mx, my, cx, shorten_btn_y, cw, shorten_btn_h)
+    local shorten_enabled = PlayLog.config.shorten_playing_cards and true or false
+    love.graphics.setColor(0, 0, 0, 0.35)
+    love.graphics.rectangle("fill", cx, shorten_btn_y, cw, shorten_btn_h, 4, 4)
+    love.graphics.setColor(br1, br2, br3, shorten_hov and 0.75 or 0.35)
+    love.graphics.rectangle("line", cx, shorten_btn_y, cw, shorten_btn_h, 4, 4)
+    love.graphics.setColor(0.65, 0.65, 0.65, 1)
+    love.graphics.print(PlayLog.localize("shorten_playing_cards", nil, "playlog_ui"), cx + 8, shorten_btn_y + 2, nil,
+        0.62, 0.62)
+    love.graphics.setColor(1, 1, 1, 0.82)
+    love.graphics.print(shorten_enabled and PlayLog.localize("toggle_on", nil, "playlog_ui") or
+        PlayLog.localize("toggle_off", nil, "playlog_ui"), cx + 8, shorten_btn_y + 13, nil, 0.72, 0.72)
+    G.playlog_shorten_cards_rect = { x = cx, y = shorten_btn_y, w = cw, h = shorten_btn_h }
+
     --hex input section
     local rows = math.ceil(#PLAYLOG_THEMES / 2)
-    local hex_y = log_types_btn_y + log_types_btn_h + 8
+    local hex_y = shorten_btn_y + shorten_btn_h + 8
     love.graphics.setColor(pl_col('header_text', 0.95, 0.73, 0.25, 0.7))
     love.graphics.print(PlayLog.localize("custom_colours", nil, "playlog_ui"), cx, hex_y, nil, 0.68, 0.68)
     hex_y = hex_y + 18
@@ -1349,7 +1416,8 @@ local function pl_draw_button(layout)
 end
 
 local function pl_draw_panel(layout)
-    if not G.playlog_visible then
+    local slide = G.playlog_slide or 0
+    if (not G.playlog_visible) and slide <= 0.001 then
         G.playlog_hovered_tooltip = nil
         return
     end
@@ -1552,7 +1620,12 @@ local function pl_draw_panel(layout)
 end
 
 local function pl_set_visible(is_visible)
-    G.playlog_visible = is_visible and true or false
+    local next_visible = is_visible and true or false
+    G.playlog_visible = next_visible
+    if PlayLog.config.log_open ~= next_visible then
+        PlayLog.config.log_open = next_visible
+        pl_save_config()
+    end
     if not G.playlog_visible then
         G.playlog_hovered_tooltip = nil
     end
@@ -1795,7 +1868,7 @@ function Game:start_run(args)
     G.playlog_pending_entries = {}
     G.playlog_pending_start   = 1
     G.playlog_plain_entries   = {}
-    G.playlog_visible         = true
+    G.playlog_visible         = PlayLog.config.log_open ~= false
     G.playlog_slide           = 0
     G.playlog_config_open     = false
     G.playlog_config_slide    = 0
@@ -2033,6 +2106,28 @@ function love.mousepressed(x, y, button, istouch, presses)
                 if pk.mode == 'log_types' then
                     if pk._back_rect and pl_point_in_rect(x, y, pk._back_rect.x, pk._back_rect.y, pk._back_rect.w, pk._back_rect.h) then
                         G.playlog_picker = nil
+                    elseif pk._group_rects then
+                        local group_handled = false
+                        for _, rect in ipairs(pk._group_rects) do
+                            if pl_point_in_rect(x, y, rect.x, rect.y, rect.w, rect.h) then
+                                if PlayLog.toggle_log_type_group_enabled then
+                                    PlayLog.toggle_log_type_group_enabled(rect.group)
+                                end
+                                group_handled = true
+                                break
+                            end
+                        end
+                        if group_handled then
+                        elseif pk._type_rects then
+                            for _, rect in ipairs(pk._type_rects) do
+                                if pl_point_in_rect(x, y, rect.x, rect.y, rect.w, rect.h) then
+                                    if PlayLog.toggle_log_type_enabled then
+                                        PlayLog.toggle_log_type_enabled(rect.key)
+                                    end
+                                    break
+                                end
+                            end
+                        end
                     elseif pk._type_rects then
                         for _, rect in ipairs(pk._type_rects) do
                             if pl_point_in_rect(x, y, rect.x, rect.y, rect.w, rect.h) then
@@ -2093,6 +2188,15 @@ function love.mousepressed(x, y, button, istouch, presses)
                         G.playlog_log_types_btn_rect.w,
                         G.playlog_log_types_btn_rect.h) then
                     G.playlog_picker = { mode = 'log_types', scroll = 0 }
+                    handled_cfg_click = true
+                end
+                if (not handled_cfg_click) and G.playlog_shorten_cards_rect and pl_point_in_rect(x, y,
+                        G.playlog_shorten_cards_rect.x,
+                        G.playlog_shorten_cards_rect.y,
+                        G.playlog_shorten_cards_rect.w,
+                        G.playlog_shorten_cards_rect.h) then
+                    PlayLog.config.shorten_playing_cards = not (PlayLog.config.shorten_playing_cards and true or false)
+                    pl_save_config()
                     handled_cfg_click = true
                 end
                 --swatch opens picker
@@ -2208,6 +2312,7 @@ end
 local playlog_mousereleased_ref = love.mousereleased
 function love.mousereleased(x, y, button)
     if pl_is_run_active() then
+        local was_dragging = G.playlog_panel_dragging
         local was_resizing = G.playlog_panel_resizing
         if G.playlog_picker then
             G.playlog_picker._dragging = nil
@@ -2220,6 +2325,16 @@ function love.mousereleased(x, y, button)
         if was_resizing and G.playlog_resize_dirty then
             pl_save_config()
             G.playlog_resize_dirty = nil
+        end
+        if was_dragging or was_resizing then
+            local layout = pl_get_layout()
+            local sw, sh = love.graphics.getDimensions()
+            local nearest_side = pl_get_nearest_slide_side(layout.panel_x, layout.panel_y, layout.panel_w, layout.panel_h,
+                sw, sh)
+            if PlayLog.config.panel_slide_side ~= nearest_side then
+                PlayLog.config.panel_slide_side = nearest_side
+                pl_save_config()
+            end
         end
         if was_alpha_dragging and G.playlog_alpha_dirty then
             pl_save_config()

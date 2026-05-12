@@ -56,25 +56,138 @@ function pl_apply_theme(theme)
     pl_save_config()
 end
 
-local function pl_get_sorted_log_type_keys()
-    local keys = {}
+local PL_LOG_GROUP_ORDER = {
+    'generic',
+    'player_actions',
+    'effects',
+    'gamestate',
+    'scoring',
+}
+
+local PL_LOG_GROUP_BY_KEY = {
+    message = 'generic',
+    options = 'generic',
+
+    buy = 'player_actions',
+    sell = 'player_actions',
+    use = 'player_actions',
+    reroll_shop = 'player_actions',
+    reroll_shop_into = 'player_actions',
+    booster_opened = 'player_actions',
+    booster_skipped = 'player_actions',
+    selected_blind = 'player_actions',
+    skip_blind = 'player_actions',
+    selected_card = 'player_actions',
+
+    added = 'effects',
+    added_to_shop = 'effects',
+    creates = 'effects',
+    destroys = 'effects',
+    copies = 'effects',
+    converts = 'effects',
+    converts_multiple = 'effects',
+    applied = 'effects',
+    removed_modifier = 'effects',
+    noped = 'effects',
+    change_area_size = 'effects',
+    changed_sell_cost = 'effects',
+    target_changed = 'effects',
+    blind_disabled = 'effects',
+    saved = 'effects',
+    eaten = 'effects',
+    rental = 'effects',
+    perishable = 'effects',
+    perished = 'effects',
+    hand_level_up = 'effects',
+    leveled_up = 'effects',
+    leveled_down = 'effects',
+    money = 'effects',
+    money_altered = 'effects',
+    scale = 'effects',
+    reset = 'effects',
+    blueprint = 'effects',
+
+    started = 'gamestate',
+    resume = 'gamestate',
+    start_round = 'gamestate',
+    start_ante = 'gamestate',
+    cash_out = 'gamestate',
+    starting_shop = 'gamestate',
+    ending_shop = 'gamestate',
+    win = 'gamestate',
+    lost = 'gamestate',
+    tag_applied = 'gamestate',
+    reroll_boss = 'gamestate',
+    area_size = 'gamestate',
+
+    hand_played = 'scoring',
+    hand_played_as = 'scoring',
+    hand_scored = 'scoring',
+    discarded = 'scoring',
+    hand_drawn = 'scoring',
+    score_to_beat = 'scoring',
+    debuffed_hand = 'scoring',
+    score = 'scoring',
+    added_score = 'scoring',
+    added_blind_size = 'scoring',
+}
+
+local function pl_get_log_type_group_key(key, log_type)
+    local explicit_group = type(log_type) == 'table' and log_type.group or nil
+    if type(explicit_group) == 'string' and explicit_group ~= '' then
+        return explicit_group
+    end
+    return PL_LOG_GROUP_BY_KEY[key] or 'generic'
+end
+
+local function pl_get_grouped_log_type_entries()
+    local grouped = {}
+    for _, group_key in ipairs(PL_LOG_GROUP_ORDER) do
+        grouped[group_key] = {}
+    end
     for key, log_type in pairs(PlayLog.LogTypes or {}) do
         if type(key) == 'string' and type(log_type) == 'table' then
-            keys[#keys + 1] = { key = key, text = PlayLog.localize(key, nil, "playlog_types") }
+            local group_key = pl_get_log_type_group_key(key, log_type)
+            grouped[group_key] = grouped[group_key] or {}
+            grouped[group_key][#grouped[group_key] + 1] = {
+                key = key,
+                text = PlayLog.localize(key, nil, 'playlog_types'),
+                group = group_key,
+            }
         end
     end
-    table.sort(keys, function(a, b)
-        return a.text < b.text
-    end)
-    return keys
+    local rows = {}
+    for _, group_key in ipairs(PL_LOG_GROUP_ORDER) do
+        local entries = grouped[group_key] or {}
+        table.sort(entries, function(a, b)
+            return a.text < b.text
+        end)
+        if #entries > 0 then
+            rows[#rows + 1] = {
+                kind = 'header',
+                group = group_key,
+                text = PlayLog.localize(group_key, nil, 'playlog_groups'),
+            }
+            for _, entry in ipairs(entries) do
+                rows[#rows + 1] = {
+                    kind = 'item',
+                    key = entry.key,
+                    text = entry.text,
+                    group = group_key,
+                }
+            end
+        end
+    end
+    return rows
 end
 
 function pl_sync_log_type_config(save_if_changed)
     PlayLog.config.enabled_log_types = PlayLog.config.enabled_log_types or {}
     local changed = false
-    for _, key in ipairs(pl_get_sorted_log_type_keys()) do
-        if PlayLog.config.enabled_log_types[key.key] == nil then
-            PlayLog.config.enabled_log_types[key.key] = true
+    local rows = pl_get_grouped_log_type_entries()
+    for _, row in ipairs(rows) do
+        if row.kind == 'item' and PlayLog.config.enabled_log_types[row.key] == nil then
+            PlayLog.config.enabled_log_types[row.key] = true
             changed = true
         end
     end
@@ -85,11 +198,17 @@ end
 
 function PlayLog.get_log_type_keys()
     local keys = {}
-    local sorted = pl_get_sorted_log_type_keys()
-    for _, value in ipairs(sorted) do
-        keys[#keys + 1] = value.key
+    local rows = pl_get_grouped_log_type_entries()
+    for _, row in ipairs(rows) do
+        if row.kind == 'item' then
+            keys[#keys + 1] = row.key
+        end
     end
     return keys
+end
+
+function PlayLog.get_log_type_rows()
+    return pl_get_grouped_log_type_entries()
 end
 
 function PlayLog.is_log_type_enabled(key)
@@ -109,11 +228,76 @@ function PlayLog.toggle_log_type_enabled(key)
     pl_save_config()
 end
 
+function PlayLog.get_log_type_group_state(group_key)
+    if not group_key then
+        return { total = 0, enabled = 0, all = false, any = false }
+    end
+    pl_sync_log_type_config(false)
+    local rows = PlayLog.get_log_type_rows and PlayLog.get_log_type_rows() or {}
+    local total = 0
+    local enabled = 0
+    for _, row in ipairs(rows) do
+        if row.kind == 'item' and row.group == group_key then
+            total = total + 1
+            if PlayLog.is_log_type_enabled and PlayLog.is_log_type_enabled(row.key) then
+                enabled = enabled + 1
+            end
+        end
+    end
+    return {
+        total = total,
+        enabled = enabled,
+        all = total > 0 and enabled == total,
+        any = enabled > 0,
+    }
+end
+
+function PlayLog.set_log_type_group_enabled(group_key, enabled)
+    if not group_key then return end
+    pl_sync_log_type_config(false)
+    local changed = false
+    local rows = PlayLog.get_log_type_rows and PlayLog.get_log_type_rows() or {}
+    for _, row in ipairs(rows) do
+        if row.kind == 'item' and row.group == group_key then
+            local next_value = enabled and true or false
+            if PlayLog.config.enabled_log_types[row.key] ~= next_value then
+                PlayLog.config.enabled_log_types[row.key] = next_value
+                changed = true
+            end
+        end
+    end
+    if changed then
+        pl_save_config()
+    end
+end
+
+function PlayLog.toggle_log_type_group_enabled(group_key)
+    local state = PlayLog.get_log_type_group_state and PlayLog.get_log_type_group_state(group_key)
+    if not state then return end
+    local set_to_enabled = not state.all
+    PlayLog.set_log_type_group_enabled(group_key, set_to_enabled)
+end
+
 if not PlayLog.config.panel_bg then
     pl_apply_theme(PLAYLOG_THEMES[1])
 end
 if type(PlayLog.config.time_format_index) ~= 'number' then
     PlayLog.config.time_format_index = 4
+    pl_save_config()
+end
+if type(PlayLog.config.log_open) ~= 'boolean' then
+    PlayLog.config.log_open = true
+    pl_save_config()
+end
+if PlayLog.config.panel_slide_side ~= 'left'
+    and PlayLog.config.panel_slide_side ~= 'right'
+    and PlayLog.config.panel_slide_side ~= 'top'
+    and PlayLog.config.panel_slide_side ~= 'bottom' then
+    PlayLog.config.panel_slide_side = 'right'
+    pl_save_config()
+end
+if type(PlayLog.config.shorten_playing_cards) ~= 'boolean' then
+    PlayLog.config.shorten_playing_cards = false
     pl_save_config()
 end
 
@@ -220,15 +404,19 @@ function pl_draw_picker(layout)
         local cy = layout.content_y
         local cw = layout.content_w
         local mx, my = love.mouse.getPosition()
-        local keys = PlayLog.get_log_type_keys and PlayLog.get_log_type_keys() or {}
+        local rows = PlayLog.get_log_type_rows and PlayLog.get_log_type_rows() or {}
         local row_h = 20
         local row_gap = 4
+        local header_h = 22
+        local header_gap = 2
         local list_x = cx
         local list_y = cy + 24
         local list_w = cw
         local list_h = math.max(20, layout.content_h - 26)
-        local row_step = row_h + row_gap
-        local total_h = #keys * row_step
+        local total_h = 0
+        for _, row in ipairs(rows) do
+            total_h = total_h + ((row.kind == 'header') and (header_h + header_gap) or (row_h + row_gap))
+        end
         local max_scroll = math.max(0, total_h - list_h)
         local scroll = pl_local_clamp(tonumber(pk.scroll) or 0, 0, max_scroll)
         pk.scroll = scroll
@@ -243,41 +431,75 @@ function pl_draw_picker(layout)
         love.graphics.print(PlayLog.localize("log_types", nil, "playlog_ui"), cx + 68, cy + 3, nil, 0.72, 0.72)
 
         pk._type_rects = {}
+        pk._group_rects = {}
         pk._back_rect = { x = cx, y = cy, w = 60, h = 18 }
         pk._list_rect = { x = list_x, y = list_y, w = list_w, h = list_h }
 
         love.graphics.setScissor(list_x, list_y, list_w, list_h)
-        for i, key in ipairs(keys) do
-            local y = list_y + (i - 1) * row_step - scroll
-            if y + row_h >= list_y and y <= (list_y + list_h) then
-                local hov = pl_point_in_rect(mx, my, list_x, y, list_w, row_h)
-                if hov then
-                    love.graphics.setColor(1, 1, 1, 0.06)
-                    love.graphics.rectangle("fill", list_x, y, list_w, row_h, 3, 3)
+        local y_cursor = list_y - scroll
+        for _, row in ipairs(rows) do
+            if row.kind == 'header' then
+                if y_cursor + header_h >= list_y and y_cursor <= (list_y + list_h) then
+                    local state = PlayLog.get_log_type_group_state and PlayLog.get_log_type_group_state(row.group)
+                    local group_all = state and state.all or false
+                    local group_any = state and state.any or false
+                    local box_x = list_x + 2
+                    local box_y = y_cursor + 3
+                    local box_s = 14
+                    local br1, br2, br3 = pl_col('border', 0.95, 0.73, 0.25, 1)
+                    love.graphics.setColor(0, 0, 0, 0.45)
+                    love.graphics.rectangle("fill", box_x, box_y, box_s, box_s, 3, 3)
+                    love.graphics.setColor(br1, br2, br3, group_any and 0.95 or 0.35)
+                    love.graphics.rectangle("line", box_x, box_y, box_s, box_s, 3, 3)
+                    if group_all then
+                        love.graphics.setColor(br1, br2, br3, 0.95)
+                        love.graphics.rectangle("fill", box_x + 3, box_y + 3, box_s - 6, box_s - 6, 2, 2)
+                    elseif group_any then
+                        love.graphics.setColor(br1, br2, br3, 0.95)
+                        love.graphics.rectangle("fill", box_x + 3, box_y + math.floor(box_s * 0.5), box_s - 6, 2, 1, 1)
+                    end
+                    love.graphics.setColor(pl_col('header_text', 0.95, 0.73, 0.25, 0.75))
+                    love.graphics.print(tostring(row.text or ''), box_x + box_s + 8, y_cursor + 3, nil, 0.66, 0.66)
+                    pk._group_rects[#pk._group_rects + 1] = {
+                        x = list_x,
+                        y = y_cursor,
+                        w = list_w,
+                        h = header_h,
+                        group = row.group,
+                    }
                 end
-                local enabled = PlayLog.is_log_type_enabled and PlayLog.is_log_type_enabled(key)
-                local box_x = list_x + 4
-                local box_y = y + 3
-                local box_s = 14
-                local br1, br2, br3 = pl_col('border', 0.95, 0.73, 0.25, 1)
-                love.graphics.setColor(0, 0, 0, 0.45)
-                love.graphics.rectangle("fill", box_x, box_y, box_s, box_s, 3, 3)
-                love.graphics.setColor(br1, br2, br3, enabled and 0.95 or 0.35)
-                love.graphics.rectangle("line", box_x, box_y, box_s, box_s, 3, 3)
-                if enabled then
-                    love.graphics.setColor(br1, br2, br3, 0.95)
-                    love.graphics.rectangle("fill", box_x + 3, box_y + 3, box_s - 6, box_s - 6, 2, 2)
+                y_cursor = y_cursor + header_h + header_gap
+            else
+                if y_cursor + row_h >= list_y and y_cursor <= (list_y + list_h) then
+                    local hov = pl_point_in_rect(mx, my, list_x, y_cursor, list_w, row_h)
+                    if hov then
+                        love.graphics.setColor(1, 1, 1, 0.06)
+                        love.graphics.rectangle("fill", list_x, y_cursor, list_w, row_h, 3, 3)
+                    end
+                    local enabled = PlayLog.is_log_type_enabled and PlayLog.is_log_type_enabled(row.key)
+                    local box_x = list_x + 4
+                    local box_y = y_cursor + 3
+                    local box_s = 14
+                    local br1, br2, br3 = pl_col('border', 0.95, 0.73, 0.25, 1)
+                    love.graphics.setColor(0, 0, 0, 0.45)
+                    love.graphics.rectangle("fill", box_x, box_y, box_s, box_s, 3, 3)
+                    love.graphics.setColor(br1, br2, br3, enabled and 0.95 or 0.35)
+                    love.graphics.rectangle("line", box_x, box_y, box_s, box_s, 3, 3)
+                    if enabled then
+                        love.graphics.setColor(br1, br2, br3, 0.95)
+                        love.graphics.rectangle("fill", box_x + 3, box_y + 3, box_s - 6, box_s - 6, 2, 2)
+                    end
+                    love.graphics.setColor(1, 1, 1, enabled and 0.90 or 0.45)
+                    love.graphics.print(tostring(row.text or ''), box_x + box_s + 8, y_cursor + 4, nil, 0.72, 0.72)
+                    pk._type_rects[#pk._type_rects + 1] = {
+                        x = list_x,
+                        y = y_cursor,
+                        w = list_w,
+                        h = row_h,
+                        key = row.key
+                    }
                 end
-                love.graphics.setColor(1, 1, 1, enabled and 0.90 or 0.45)
-                love.graphics.print(PlayLog.localize(key, nil, "playlog_types"), box_x + box_s + 8, y + 4, nil, 0.72,
-                    0.72)
-                pk._type_rects[#pk._type_rects + 1] = {
-                    x = list_x,
-                    y = y,
-                    w = list_w,
-                    h = row_h,
-                    key = key
-                }
+                y_cursor = y_cursor + row_h + row_gap
             end
         end
         love.graphics.setScissor()
