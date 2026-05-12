@@ -8,6 +8,13 @@ Adds a log of every action taken in a run.
 2. Download the [latest release](https://github.com/nh6574/PlayLog/releases)
 3. Put the zip inside your Balatro mods folder (%appdata%\Balatro\Mods or equivalent)
 
+## Screenshots
+
+<img src="screenshots/1.png" alt="Example 1" width="500">
+<img src="screenshots/2.png" alt="Example 1" width="500">
+<img src="screenshots/3.png" alt="Example 1" width="500">
+<img src="screenshots/4.png" alt="Example 1" width="500">
+
 ## Contact
 
 If you have any issues feel free to contact me on [Bluesky](https://bsky.app/profile/nh6574.com) or [on the official Balatro Discord as nh6574](https://discord.com/invite/balatro)

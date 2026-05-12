@@ -2259,9 +2259,9 @@ function love.mousepressed(x, y, button, istouch, presses)
             end
         end
     elseif button == 2 then
-        if pl_point_in_rect(x, y, layout.button_x, layout.button_y, layout.button_w, layout.button_h) then
-            G.FUNCS.playlog_open_log(nil)
-        end
+        -- if pl_point_in_rect(x, y, layout.button_x, layout.button_y, layout.button_w, layout.button_h) then
+        --     G.FUNCS.playlog_open_log(nil)
+        -- end
     end
     playlog_mousepressed_ref(x, y, button, istouch, presses)
 end
