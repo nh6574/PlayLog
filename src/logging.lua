@@ -3,7 +3,7 @@ PlayLog.temp = {}
 
 local function pl_snapshot_hand_state(hand_state)
     if type(hand_state) ~= 'table' then return nil end
-    local level = tonumber(hand_state.level)
+    local level = tonumber(hand_state.level) or 1
     local chips = tonumber(hand_state.chips)
     local mult = tonumber(hand_state.mult)
 
