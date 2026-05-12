@@ -1236,13 +1236,23 @@ end
 
 local function pl_draw_config_content(layout)
     local cx     = layout.content_x
-    local cy     = layout.content_y
+    local cy_raw = layout.content_y
     local cw     = layout.content_w
+    local ch     = layout.content_h
     local btn_w  = math.floor((cw - 10) / 2)
     local btn_h  = 40
     local gap    = 6
     local mx, my = pl_raw_mouse_pos()
-    --title
+    local total_cfg_h = 26 + math.ceil(#PLAYLOG_THEMES / 2) * (btn_h + gap)
+        + (6 + 30) + (6 + 30) + (6 + 30) + (6 + 30)
+        + (8 + 18)
+        + #pl_hex_fields * (28 + 5)
+    local max_cfg_scroll = math.max(0, total_cfg_h - ch)
+    G.playlog_cfg_scroll     = pl_clamp(G.playlog_cfg_scroll or 0, 0, max_cfg_scroll)
+    G.playlog_cfg_scroll_max = max_cfg_scroll
+    G.playlog_cfg_content_rect = { x = cx, y = cy_raw, w = cw, h = ch }
+    local scroll = G.playlog_cfg_scroll
+    local cy = cy_raw - scroll
     love.graphics.setColor(pl_col('header_text', 0.95, 0.73, 0.25, 1))
     love.graphics.print(PlayLog.localize("select_theme", nil, "playlog_ui"), cx, cy + 4, nil, 0.80, 0.80)
     G.playlog_theme_rects = {}
@@ -1396,6 +1406,21 @@ local function pl_draw_config_content(layout)
             label = field
                 .label
         }
+    end
+    if max_cfg_scroll > 0 then
+        local sb_w = 4
+        local sb_x = cx + cw - sb_w
+        local sb_y = cy_raw
+        local sb_h = ch
+        love.graphics.setColor(1, 1, 1, 0.08)
+        love.graphics.rectangle("fill", sb_x, sb_y, sb_w, sb_h, 2, 2)
+        local ratio   = ch / math.max(total_cfg_h, 1)
+        local knob_h  = math.max(16, sb_h * ratio)
+        local t       = scroll / max_cfg_scroll
+        local knob_y  = sb_y + (sb_h - knob_h) * t
+        local sbr1, sbr2, sbr3 = pl_col('scrollbar_knob', 0.95, 0.73, 0.25, 1)
+        love.graphics.setColor(sbr1, sbr2, sbr3, 0.85)
+        love.graphics.rectangle("fill", sb_x, knob_y, sb_w, knob_h, 2, 2)
     end
 end
 
@@ -2368,6 +2393,17 @@ function love.wheelmoved(x, y)
         local step = 20
         local max_scroll = tonumber(pk._scroll_max) or 0
         pk.scroll = pl_clamp((tonumber(pk.scroll) or 0) - y * step, 0, max_scroll)
+        return playlog_wheelmoved_ref(x, y)
+    end
+    local cfg_slide = G.playlog_config_slide or 0
+    if G.playlog_visible and cfg_slide > 0.5 and not pk
+        and G.playlog_cfg_content_rect
+        and pl_point_in_rect(mx, my, G.playlog_cfg_content_rect.x, G.playlog_cfg_content_rect.y,
+            G.playlog_cfg_content_rect.w, G.playlog_cfg_content_rect.h) then
+        local max_cfg = G.playlog_cfg_scroll_max or 0
+        if max_cfg > 0 then
+            G.playlog_cfg_scroll = pl_clamp((G.playlog_cfg_scroll or 0) - y * 20, 0, max_cfg)
+        end
         return playlog_wheelmoved_ref(x, y)
     end
     if G.playlog_visible and pl_point_in_rect(mx, my, layout.panel_x, layout.panel_y, layout.panel_w, layout.panel_h) then
