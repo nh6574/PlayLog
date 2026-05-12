@@ -209,7 +209,7 @@ local function pl_draw_rich_segments(segments, x, y, max_x, mouse_x, mouse_y, li
                 love.graphics.setColor(seg_strike[1] or 1, seg_strike[2] or 1, seg_strike[3] or 1, seg_strike[4] or 1)
                 love.graphics.rectangle("fill", draw_x, draw_y + seg_h * 0.55, token_w, 1)
             end
-            if seg_tooltip or seg_func then
+            if (seg_tooltip or seg_func) and not G.OVERLAY_MENU then
                 if mouse_x >= draw_x and mouse_x <= (draw_x + token_w)
                     and mouse_y >= draw_y and mouse_y <= (draw_y + seg_h) then
                     hovered_tooltip = {
@@ -1323,7 +1323,7 @@ end
 
 local function pl_draw_button(layout)
     local mx, my = love.mouse.getPosition()
-    local hovered = pl_point_in_rect(mx, my, layout.button_x, layout.button_y, layout.button_w, layout.button_h)
+    local hovered = not G.OVERLAY_MENU and pl_point_in_rect(mx, my, layout.button_x, layout.button_y, layout.button_w, layout.button_h) 
     local is_open = G.playlog_visible
     --shadow
     love.graphics.setColor(0, 0, 0, 0.35)
@@ -1403,16 +1403,20 @@ local function pl_draw_panel(layout)
     for _, dot in ipairs({ { -8, 0 }, { 0, 0 }, { 8, 0 } }) do
         love.graphics.circle("fill", hdr_cx + dot[1], hdr_cy, 2)
     end
-    if resize_tl_hov or resize_br_hov or G.playlog_resize_mode == 'tl' or G.playlog_resize_mode == 'br' then
-        pl_set_cursor("sizenwse")
-    elseif resize_tr_hov or resize_bl_hov or G.playlog_resize_mode == 'tr' or G.playlog_resize_mode == 'bl' then
-        pl_set_cursor("sizenesw")
-    elseif resize_l_hov or resize_r_hov or G.playlog_resize_mode == 'left' or G.playlog_resize_mode == 'right' then
-        pl_set_cursor("sizewe")
-    elseif resize_t_hov or resize_b_hov or G.playlog_resize_mode == 'top' or G.playlog_resize_mode == 'bottom' then
-        pl_set_cursor("sizens")
-    elseif header_hov or G.playlog_panel_dragging then
-        pl_set_cursor("sizeall")
+    if not G.OVERLAY_MENU then
+        if resize_tl_hov or resize_br_hov or G.playlog_resize_mode == 'tl' or G.playlog_resize_mode == 'br' then
+            pl_set_cursor("sizenwse")
+        elseif resize_tr_hov or resize_bl_hov or G.playlog_resize_mode == 'tr' or G.playlog_resize_mode == 'bl' then
+            pl_set_cursor("sizenesw")
+        elseif resize_l_hov or resize_r_hov or G.playlog_resize_mode == 'left' or G.playlog_resize_mode == 'right' then
+            pl_set_cursor("sizewe")
+        elseif resize_t_hov or resize_b_hov or G.playlog_resize_mode == 'top' or G.playlog_resize_mode == 'bottom' then
+            pl_set_cursor("sizens")
+        elseif header_hov or G.playlog_panel_dragging then
+            pl_set_cursor("sizeall")
+        else
+            pl_set_cursor(nil)
+        end
     else
         pl_set_cursor(nil)
     end
@@ -1966,7 +1970,7 @@ end
 
 local playlog_mousepressed_ref = love.mousepressed
 function love.mousepressed(x, y, button, istouch, presses)
-    if not pl_is_run_active() then
+    if not pl_is_run_active() or G.OVERLAY_MENU then
         return playlog_mousepressed_ref(x, y, button, istouch, presses)
     end
     local layout = pl_get_layout()
@@ -2136,7 +2140,7 @@ end
 
 playlog_mousemoved_ref = love.mousemoved
 function love.mousemoved(x, y, dx, dy)
-    if pl_is_run_active() then
+    if pl_is_run_active() and not G.OVERLAY_MENU then
         --panel resize
         if G.playlog_panel_resizing then
             local sw, sh = love.graphics.getDimensions()
@@ -2227,7 +2231,7 @@ end
 
 local playlog_wheelmoved_ref = love.wheelmoved
 function love.wheelmoved(x, y)
-    if not pl_is_run_active() then
+    if not pl_is_run_active() or G.OVERLAY_MENU then
         return playlog_wheelmoved_ref(x, y)
     end
     local mx, my = love.mouse.getPosition()
