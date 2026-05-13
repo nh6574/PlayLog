@@ -8,7 +8,7 @@
   "main_file": "PlayLog.lua",
   "priority": -10,
   "badge_colour": "1EAED6",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "no_marquee": true,
   "dependencies": ["Steamodded (>=1.0.0~BETA-0827c)"],
   "allow_redistribution": true,

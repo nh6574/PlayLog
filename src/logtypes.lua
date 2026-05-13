@@ -35,10 +35,12 @@ local function format_center_from_key(center_key)
     if not center then return "ERROR" end
     local vars = {}
     if center.loc_vars then
-        vars = center:loc_vars({},
-                center.create_fake_card and center:create_fake_card() or
-                { config = copy_table(center.config), ability = copy_table(center.config), fake_tag = true, fake_card = true }) or
-            {}
+        local status, v = pcall(center.loc_vars, center, {},
+            center.create_fake_card and center:create_fake_card() or
+            { config = copy_table(center.config), ability = copy_table(center.config), fake_tag = true, fake_card = true })
+        if status then
+            vars = v or {}
+        end
     end
     if set == "Seal" then
         return "{T:" ..
@@ -72,7 +74,10 @@ local function format_card(card)
     local vars = {}
     card.fake_card = true
     if center.loc_vars then
-        vars = center:loc_vars({}, card) or {}
+        local status, v = pcall(center.loc_vars, center, {}, card)
+        if status then
+            vars = v or {}
+        end
     end
     card.fake_card = nil
     if card.config.center.set == "Booster" then vars.set = "Other" end
