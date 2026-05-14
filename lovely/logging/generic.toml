@@ -98,3 +98,20 @@ payload = '''
         end
     }))
 '''
+
+# Hand scored
+[[patches]]
+[patches.pattern]
+target = 'functions/state_events.lua'
+pattern = "SMODS.last_hand_oneshot = SMODS.calculate_round_score() > G.GAME.blind.chips"
+position = 'after'
+match_indent = true
+payload = '''
+local amount = SMODS.calculate_round_score()
+G.E_MANAGER:add_event(Event({
+    func = function()
+        PlayLog.log { type = "hand_scored", amount = amount, score = G.GAME.chips, to_beat = G.GAME.blind.chips }
+        return true
+    end
+}))
+'''

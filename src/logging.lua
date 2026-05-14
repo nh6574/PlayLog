@@ -422,16 +422,6 @@ SMODS.current_mod.calculate = function(self, context)
         }))
     end
 
-    if context.after then
-        local amount = SMODS.calculate_round_score()
-        G.E_MANAGER:add_event(Event({
-            func = function()
-                PlayLog.log { type = "hand_scored", amount = amount, score = G.GAME.chips, to_beat = G.GAME.blind.chips }
-                return true
-            end
-        }))
-    end
-
     if context.money_altered then
         local amount = context.amount
         -- TODO: fix weird case with calling ease_dollars multiple times (the tooth...)
