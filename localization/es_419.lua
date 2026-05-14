@@ -30,7 +30,8 @@ return {
             config_button = "CFG",
             back_button = "ATRÁS",
             editing_colour = "EDITANDO: ",
-            edit_hex = "clickea para escribir el hex"
+            edit_hex = "clickea para escribir el hex",
+            log_time = "Fecha de registro"
         },
         playlog_themes = {
             Gold = "Oro",
