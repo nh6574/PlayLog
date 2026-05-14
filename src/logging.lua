@@ -199,6 +199,9 @@ SMODS.current_mod.calculate = function(self, context)
         local hand_key = context.scoring_name
         local old_level = context.old_level
         local new_level = context.new_level
+        local hand_now = (G and G.GAME and G.GAME.hands and G.GAME.hands[hand_key]) or nil
+        local new_state = pl_snapshot_hand_state(hand_now) or {}
+
         G.E_MANAGER:add_event(Event({
             func = function()
                 PlayLog.temp = type(PlayLog.temp) == 'table' and PlayLog.temp or {}
@@ -206,8 +209,7 @@ SMODS.current_mod.calculate = function(self, context)
                     and PlayLog.temp.hand_snapshots or {}
 
                 local old_state = PlayLog.temp.hand_snapshots[hand_key]
-                local hand_now = (G and G.GAME and G.GAME.hands and G.GAME.hands[hand_key]) or nil
-                local new_state = pl_snapshot_hand_state(hand_now) or {}
+
                 if not old_state then
                     old_state = {
                         level = tonumber(old_level),

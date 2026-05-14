@@ -33,7 +33,8 @@ return {
             config_button = "CFG",
             back_button = "BACK",
             editing_colour = "EDITING: ",
-            edit_hex = "click to type hex"
+            edit_hex = "click to type hex",
+            log_time = "Logged at"
         },
         playlog_themes = {
             Gold = "Gold",
