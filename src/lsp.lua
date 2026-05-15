@@ -1,0 +1,78 @@
+---@meta
+
+---@class PlayLog.LogType: SMODS.GameObject
+---@field get_message fun(self: PlayLog.LogType, args: table):string Returns the string to log
+---@field group "generic"|"player_actions"|"effects"|"gamestate"|"scoring"|string? key for the group this log type belongs to
+
+---@overload fun(self: PlayLog.LogType): PlayLog.LogType
+PlayLog.LogType = setmetatable({}, {
+    __call = function(self)
+        return self
+    end
+})
+
+---@alias LogType
+---| 'hand_played'
+---| 'added_blind_size'
+---| 'added_score'
+---| 'blueprint'
+---| 'score'
+---| 'defeated_blind'
+---| 'buy'
+---| 'changed_sell_cost'
+---| 'copies'
+---| 'scale'
+---| 'eaten'
+---| 'perished'
+---| 'started'
+---| 'selected_blind'
+---| 'booster_skipped'
+---| 'starting_shop'
+---| 'booster_opened'
+---| 'use'
+---| 'perishable'
+---| 'discarded'
+---| 'start_ante'
+---| 'creates'
+---| 'added'
+---| 'reroll_shop'
+---| 'money_altered'
+---| 'start_round'
+---| 'selected_card'
+---| 'sell'
+---| 'cash_out'
+---| 'converts_multiple'
+---| 'reroll_shop_into'
+---| 'hand_played_as'
+---| 'blind_disabled'
+---| 'area_size'
+---| 'target_changed'
+---| 'options'
+---| 'score_to_beat'
+---| 'hand_drawn'
+---| 'tag_applied'
+---| 'reroll_boss'
+---| 'win'
+---| 'change_area_size'
+---| 'resume'
+---| 'hand_scored'
+---| 'applied'
+---| 'ending_shop'
+---| 'debuffed_hand'
+---| 'saved'
+---| 'destroys'
+---| 'reset'
+---| 'hand_level_up'
+---| 'added_to_shop'
+---| 'leveled_up'
+---| 'money'
+---| 'message'
+---| 'lost'
+---| 'swap'
+---| 'balance'
+---| 'rental'
+---| 'removed_modifier'
+---| 'converts'
+---| 'skip_blind'
+---| 'noped'
+---| 'leveled_down'
