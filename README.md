@@ -8,6 +8,10 @@ Adds a log of every action taken in a run.
 2. Download the [latest release](https://github.com/nh6574/PlayLog/releases)
 3. Put the zip inside your Balatro mods folder (%appdata%\Balatro\Mods or equivalent)
 
+# Adding support in your mod
+
+Check the [wiki](https://github.com/nh6574/PlayLog/wiki) for API documentation.
+
 ## Screenshots
 
 <img src="screenshots/1.png" alt="Example 1" width="500">
