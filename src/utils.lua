@@ -421,9 +421,10 @@ end
 ---Returns a formatted string from the PlayLog localization
 ---@param key string
 ---@param vars table?
+---@param loc_table string?
 ---@return string
-function PlayLog.localize(key, vars, table)
-    local text = G.localization.misc[table or "playlog"][key]
+function PlayLog.localize(key, vars, loc_table)
+    local text = G.localization.misc[loc_table or "playlog"][key]
     if not text then return "ERROR" end
     vars = vars or {}
 
