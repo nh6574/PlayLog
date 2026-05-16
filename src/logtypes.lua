@@ -400,8 +400,8 @@ PlayLog.LogType {
     group = "effects",
     get_message = function(self, args)
         local hand_list = {}
-        if #G.handlist == #args.poker_hands then
-            hand_list[#hand_list + 1] = PlayLog.localize("all_hands")
+        if not args.poker_hands or #G.handlist == #args.poker_hands then
+            hand_list[#hand_list + 1] = "{C:attention}" .. PlayLog.localize("all_hands") .. "{}"
         else
             for _, hand in ipairs(args.poker_hands) do
                 hand_list[#hand_list + 1] = "{C:attention}" .. localize(hand, 'poker_hands') .. "{}"
