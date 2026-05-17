@@ -667,7 +667,7 @@ end
 
 local smods_blueprint_effect_ref = SMODS.blueprint_effect
 function SMODS.blueprint_effect(copier, copied_card, context)
-    local ret = smods_blueprint_effect_ref
+    local ret = smods_blueprint_effect_ref(copier, copied_card, context)
     if ret then
         G.E_MANAGER:add_event(Event({
             func = function()
