@@ -1,0 +1,7 @@
+{
+  "name": "PlayLog",
+  "version_number": "0.1.4",
+  "website_url": "https://github.nh6574.com/PlayLog",
+  "description": "Adds a log to the game.",
+  "dependencies": ["Thunderstore-lovely-0.9.0"]
+}
