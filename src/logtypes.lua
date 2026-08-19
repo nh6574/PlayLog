@@ -27,6 +27,22 @@ PlayLog.LogType {
     end
 }
 
+local function cleanup_unused_loc_vars_ui(loc_vars)
+    if type(loc_vars) ~= "table" then return end
+    local visited = {}
+    local function cleanup(node)
+        if type(node) ~= "table" or visited[node] then return end
+        visited[node] = true
+        if type(node.is) == "function" and node:is(UIBox) then node:remove() return end
+        local config = rawget(node, "config")
+        if type(config) == "table" then cleanup(rawget(config, "object")) end
+        cleanup(rawget(node, "nodes"))
+        for _, value in ipairs(node) do cleanup(value) end
+    end
+    cleanup(loc_vars.main_start)
+    cleanup(loc_vars.main_end)
+end
+
 local function format_center_from_key(center_key)
     local center = G.P_CENTERS[center_key] or G.P_SEALS[center_key] or G.P_BLINDS[center_key] or G.P_TAGS[center_key] or
         G.P_STAKES[center_key]
@@ -40,6 +56,7 @@ local function format_center_from_key(center_key)
             { config = copy_table(center.config), ability = copy_table(center.config), fake_tag = true, fake_card = true })
         if status then
             vars = v or {}
+            cleanup_unused_loc_vars_ui(vars)
         end
     end
     if set == "Seal" then
@@ -77,6 +94,7 @@ local function format_card(card)
         local status, v = pcall(center.loc_vars, center, {}, card)
         if status then
             vars = v or {}
+            cleanup_unused_loc_vars_ui(vars)
         end
     end
     card.fake_card = nil
