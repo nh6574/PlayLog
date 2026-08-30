@@ -1921,10 +1921,21 @@ function Game:start_run(args)
     pl_remove_tooltip_card()
 end
 
+local function pl_use_lang_font()
+    local pl_font_key = G.SETTINGS.language
+    if not PlayLog._cached_fonts then PlayLog._cached_fonts = {} end
+    if not PlayLog._cached_fonts[pl_font_key] then
+        local font_size = G.LANG.font.render_scale * G.LANG.font.FONTSCALE
+        PlayLog._cached_fonts[pl_font_key] = love.graphics.newFont(G.LANG.font.file, font_size)
+    end
+    love.graphics.setFont(PlayLog._cached_fonts[pl_font_key])
+end
+
 local game_update_ref = Game.update
 function Game:update(dt)
     local ret = game_update_ref(self, dt)
     if pl_is_run_active() then
+        pl_use_lang_font()
         if (G.playlog_copy_feedback_t or 0) > 0 then
             G.playlog_copy_feedback_t = math.max(0, (G.playlog_copy_feedback_t or 0) - dt)
         end
@@ -1951,6 +1962,8 @@ end
 
 function PlayLog.draw()
     if not pl_is_run_active() then return end
+    local prev_font = love.graphics.getFont()
+    pl_use_lang_font()
     local layout = pl_get_layout()
     G.playlog_panel_rect = { x = layout.panel_x, y = layout.panel_y, w = layout.panel_w, h = layout.panel_h }
     if (G.playlog_slide or 0) > 0.01 then
@@ -1966,6 +1979,7 @@ function PlayLog.draw()
     if (G.playlog_slide or 0) > 0.5 then
         pl_draw_hover_tooltip(active_tooltip)
     end
+    love.graphics.setFont(prev_font)
 end
 
 if not love.mousepressed then
