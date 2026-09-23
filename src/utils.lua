@@ -452,6 +452,7 @@ end
 ---@param suit string suit key
 ---@return string
 function PlayLog.localize_rank_of_suit(rank, suit, card)
+    if card and card.facing == 'back' then return PlayLog.localize("unknown_card") end
     if card and card.config.center_key == "m_stone" then return localize { type = "name_text", set = "Enhanced", key = "m_stone" } end
     if card and card:should_hide_front() then return PlayLog.localize("playing_card") end
     local rank_text = PlayLog.config.shorten_playing_cards and SMODS.Ranks[rank].card_key or localize(rank, 'ranks')

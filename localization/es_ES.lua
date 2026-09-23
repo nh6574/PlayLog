@@ -120,6 +120,7 @@ return {
             end_separator = "#1# y #2#",
             rank_of_suit = "#1# de #2#",
             playing_card = "Carta de juego",
+            unknown_card = "???",
 
             -- Areas
             joker_area = "ranuras de comodín",

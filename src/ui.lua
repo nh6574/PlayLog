@@ -551,6 +551,7 @@ local function pl_draw_hover_tooltip(hovered)
         return
     end
     local is_func = hovered.func ~= nil and tostring(hovered.func) ~= ""
+    local is_hidden_card = hovered.func == "playlog_hidden_card"
     local card_snapshot = not is_func and pl_get_card_snapshot_payload(hovered.key) or nil
     local snapshot_center = card_snapshot and G and G.P_CENTERS and G.P_CENTERS[card_snapshot.center_key or 'c_base'] or
         nil
@@ -675,7 +676,64 @@ local function pl_draw_hover_tooltip(hovered)
         end
         pl_tooltip_card.children.info = nil
     end
-    if not pl_tooltip_card.children.playlog_box then
+    if not pl_tooltip_card.children.playlog_box and is_hidden_card then
+        local unknown_text = PlayLog.localize("unknown_card")
+        local display_card = Card(0, 0, G.CARD_W / 1.2, G.CARD_H / 1.2, nil, G.P_CENTERS.c_base)
+        display_card.no_ui = true
+        display_card.no_shadow = true
+        display_card.facing = "back"
+        display_card.sprite_facing = "back"
+        local hidden_card_nodes = {
+            {
+                n = G.UIT.R,
+                config = { align = "cm", padding = 0.07, r = 0.1, colour = G.C.CLEAR },
+                nodes = {
+                    { n = G.UIT.T, config = { text = unknown_text, scale = 0.5, colour = G.C.WHITE, vert = false } }
+                }
+            },
+            desc_from_rows({
+                {
+                    { n = G.UIT.T, config = { text = unknown_text, scale = 0.32, colour = G.C.UI.TEXT_DARK } }
+                }
+            })
+        }
+
+        pl_tooltip_card.children.playlog_box = UIBox {
+            definition = PlayLog.create_tooltip_UIBox({
+                {
+                    n = G.UIT.C,
+                    config = { align = "cm", colour = G.C.CLEAR },
+                    nodes = {
+                        {
+                            n = G.UIT.R,
+                            config = { padding = 0.05, r = 0.12, colour = G.C.CLEAR, emboss = 0.07 },
+                            nodes = {
+                                {
+                                    n = G.UIT.R,
+                                    config = { align = "cm", padding = 0.07, r = 0.1, colour = G.C.CLEAR },
+                                    nodes = hidden_card_nodes
+                                }
+                            }
+                        }
+                    }
+                },
+                {
+                    n = G.UIT.C,
+                    config = { align = "cm", r = 0.2, padding = 0.05, minw = 1, colour = G.C.CLEAR },
+                    nodes = {
+                        { n = G.UIT.O, config = { object = display_card } }
+                    }
+                },
+            }, hovered.func),
+            config = {
+                align = "cm",
+                offset = { x = 0, y = 0 },
+                major = pl_tooltip_card,
+                instance_type = "POPUP"
+            }
+        }
+        pl_apply_tooltip_position()
+    elseif not pl_tooltip_card.children.playlog_box then
         local display_card
         local tooltip_source_card = pl_tooltip_card
         local name = {}
