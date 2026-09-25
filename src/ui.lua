@@ -1008,8 +1008,10 @@ local function pl_get_layout()
     local content_h = panel_h - header_h - 22
     local button_w = 36
     local button_h = 36
-    local button_x = sw - button_w - 12
-    local button_y = sh - button_h - 100
+    local default_button_x = sw - button_w - 12
+    local default_button_y = sh - button_h - 100
+    local button_x = pl_clamp(default_button_x + (tonumber(PlayLog.config.button_dx) or 0), 0, sw - button_w)
+    local button_y = pl_clamp(default_button_y + (tonumber(PlayLog.config.button_dy) or 0), 0, sh - button_h)
     local cfg_btn_w = 28
     local cfg_btn_h = 18
     local cfg_btn_x = panel_x + panel_w - 40
@@ -1032,6 +1034,8 @@ local function pl_get_layout()
         button_y = button_y,
         button_w = button_w,
         button_h = button_h,
+        default_button_x = default_button_x,
+        default_button_y = default_button_y,
         scrollbar_x = panel_x + panel_w - 12,
         scrollbar_y = content_y,
         scrollbar_w = 6,
@@ -1505,8 +1509,12 @@ local function pl_draw_button(layout)
     love.graphics.setLineWidth(1)
     --icon
     love.graphics.setColor(hovered and 0.1 or 1, hovered and 0.1 or 1, hovered and 0.1 or 1, 1)
-    love.graphics.print(PlayLog.localize("log_button", nil, "playlog_ui"), layout.button_x + 4, layout.button_y + 10, nil,
-        0.72, 0.72)
+    local label = PlayLog.localize("log_button", nil, "playlog_ui")
+    local label_scale = 0.72
+    local font = love.graphics.getFont()
+    local label_x = layout.button_x + (layout.button_w - font:getWidth(label) * label_scale) * 0.5
+    local label_y = layout.button_y + (layout.button_h - font:getHeight() * label_scale) * 0.5
+    love.graphics.print(label, label_x, label_y, nil, label_scale, label_scale)
 end
 
 local function pl_draw_panel(layout)
@@ -1971,6 +1979,12 @@ function Game:start_run(args)
     G.playlog_picker          = nil
     G.playlog_hovered_tooltip = nil
     G.playlog_copy_feedback_t = 0
+    G.playlog_button_pressing = nil
+    G.playlog_button_dragging = nil
+    G.playlog_button_drag_start_x = nil
+    G.playlog_button_drag_start_y = nil
+    G.playlog_button_drag_base_dx = nil
+    G.playlog_button_drag_base_dy = nil
     pl_restore_log_from_file()
     if G and G.GAME then
         G.GAME.playlog_log_initialized = nil
@@ -2143,7 +2157,12 @@ function love.mousepressed(x, y, button, istouch, presses)
     local layout = pl_get_layout()
     if button == 1 then
         if pl_point_in_rect(x, y, layout.button_x, layout.button_y, layout.button_w, layout.button_h) then
-            pl_set_visible(not G.playlog_visible)
+            G.playlog_button_pressing = true
+            G.playlog_button_dragging = false
+            G.playlog_button_drag_start_x = x
+            G.playlog_button_drag_start_y = y
+            G.playlog_button_drag_base_dx = tonumber(PlayLog.config.button_dx) or 0
+            G.playlog_button_drag_base_dy = tonumber(PlayLog.config.button_dy) or 0
         elseif G.playlog_visible and (
                 pl_point_in_rect(x, y, layout.resize_tl_x, layout.resize_tl_y, layout.resize_corner, layout.resize_corner)
                 or pl_point_in_rect(x, y, layout.resize_tr_x, layout.resize_tr_y, layout.resize_corner, layout.resize_corner)
@@ -2339,6 +2358,21 @@ end
 playlog_mousemoved_ref = love.mousemoved
 function love.mousemoved(x, y, dx, dy)
     if pl_is_run_active() and not G.OVERLAY_MENU then
+        if G.playlog_button_pressing then
+            local move_x = x - (G.playlog_button_drag_start_x or x)
+            local move_y = y - (G.playlog_button_drag_start_y or y)
+            if G.playlog_button_dragging or move_x * move_x + move_y * move_y >= 16 then
+                G.playlog_button_dragging = true
+                local layout = pl_get_layout()
+                local sw, sh = love.graphics.getDimensions()
+                local button_x = pl_clamp(layout.default_button_x + (G.playlog_button_drag_base_dx or 0) + move_x,
+                    0, sw - layout.button_w)
+                local button_y = pl_clamp(layout.default_button_y + (G.playlog_button_drag_base_dy or 0) + move_y,
+                    0, sh - layout.button_h)
+                PlayLog.config.button_dx = button_x - layout.default_button_x
+                PlayLog.config.button_dy = button_y - layout.default_button_y
+            end
+        end
         --panel resize
         if G.playlog_panel_resizing then
             local sw, sh = love.graphics.getDimensions()
@@ -2406,6 +2440,20 @@ end
 local playlog_mousereleased_ref = love.mousereleased
 function love.mousereleased(x, y, button)
     if pl_is_run_active() then
+        local was_button_pressing = button == 1 and G.playlog_button_pressing
+        local was_button_dragging = G.playlog_button_dragging
+        if was_button_pressing then
+            if was_button_dragging then
+                pl_save_config()
+            else
+                local layout = pl_get_layout()
+                if pl_point_in_rect(x, y, layout.button_x, layout.button_y, layout.button_w, layout.button_h) then
+                    pl_set_visible(not G.playlog_visible)
+                end
+            end
+        end
+        G.playlog_button_pressing = nil
+        G.playlog_button_dragging = nil
         local was_dragging = G.playlog_panel_dragging
         local was_resizing = G.playlog_panel_resizing
         if G.playlog_picker then
