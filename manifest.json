@@ -1,6 +1,6 @@
 {
   "name": "PlayLog",
-  "version_number": "0.1.7",
+  "version_number": "0.1.8",
   "website_url": "https://github.nh6574.com/PlayLog",
   "description": "Adds a log to the game.",
   "dependencies": [
